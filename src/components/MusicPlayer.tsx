@@ -1,11 +1,23 @@
 // ============================================================
 // MusicPlayer — Audio playback + vocal map sync — DEV A
 // ============================================================
-"use client";
+// Plays tracks from /public/music/ and feeds audio to an AnalyserNode.
+// Exposes current amplitude via shared ref or context.
+//
+// Connection chain: audioElement → analyserNode → destination
+//
+// See SPEC.md § "MusicPlayer.tsx" for details.
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import type { VocalMap } from "@/types";
-import { loadVocalMap, getMouthCueAtTime, mouthShapeToOpenness, VOCAL_MAP_OFFSET } from "@/lib/audioAnalyzer";
+'use client';
+
+import {
+  getMouthCueAtTime,
+  loadVocalMap,
+  mouthShapeToOpenness,
+  VOCAL_MAP_OFFSET,
+} from '@/lib/audioAnalyzer';
+import type { VocalMap } from '@/types';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface MusicPlayerProps {
   trackUrl: string;
@@ -46,7 +58,10 @@ export default function MusicPlayer({
       setCurrentTime(time);
       onTimeChange?.(time);
 
-      const cue = getMouthCueAtTime(vocalMap.mouthCues, time - VOCAL_MAP_OFFSET);
+      const cue = getMouthCueAtTime(
+        vocalMap.mouthCues,
+        time - VOCAL_MAP_OFFSET,
+      );
       const openness = cue ? mouthShapeToOpenness(cue.value) : 0;
       onOpennessChange(openness);
     }
@@ -72,20 +87,17 @@ export default function MusicPlayer({
     }
   }, []);
 
-  const handleSeek = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const audio = audioRef.current;
-      if (!audio) return;
-      audio.currentTime = Number(e.target.value);
-      setCurrentTime(audio.currentTime);
-    },
-    []
-  );
+  const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Number(e.target.value);
+    setCurrentTime(audio.currentTime);
+  }, []);
 
   const formatTime = (t: number) => {
     const m = Math.floor(t / 60);
     const s = Math.floor(t % 60);
-    return `${m}:${s.toString().padStart(2, "0")}`;
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -140,7 +152,7 @@ export default function MusicPlayer({
 
         {/* Track info */}
         <div className="text-xs text-gray-500 flex-shrink-0 hidden sm:block">
-          {isLoaded ? "The Real Slim Shady" : "Loading..."}
+          {isLoaded ? 'The Real Slim Shady' : 'Loading...'}
         </div>
       </div>
     </div>

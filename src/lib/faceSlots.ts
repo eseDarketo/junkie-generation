@@ -5,7 +5,7 @@
 // Scene canvas is 4000x2000 pixels.
 // Back rows smaller, front rows larger. Slight random offsets.
 
-import type { FaceSlot } from "@/types";
+import type { FaceSlot } from '@/types';
 
 const SCENE_WIDTH = 4000;
 const SCENE_HEIGHT = 2000;

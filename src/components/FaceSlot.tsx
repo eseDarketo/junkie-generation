@@ -1,14 +1,21 @@
 // ============================================================
 // FaceSlot — Individual face in the group photo — DEV A
 // ============================================================
-"use client";
+// Each face slot is TWO meshes (for Canadian mouth animation):
+//   - Bottom half: static
+//   - Top half: rotates on a hinge (pivot at bottom edge)
+//
+// Props should include the FaceSlot data + current amplitude.
+// See SPEC.md § "LipSyncEngine" for the split/rotation logic.
 
-import { useRef, useEffect, useState } from "react";
-import { useFrame } from "@react-three/fiber";
-import * as THREE from "three";
-import type { FaceSlot as FaceSlotType } from "@/types";
-import { FaceAnimParams, opennessToRotation } from "@/lib/mouthMapper";
-import { getSplitTextures } from "@/lib/textureCache";
+'use client';
+
+import { FaceAnimParams, opennessToRotation } from '@/lib/mouthMapper';
+import { getSplitTextures } from '@/lib/textureCache';
+import type { FaceSlot as FaceSlotType } from '@/types';
+import { useFrame } from '@react-three/fiber';
+import { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
 
 interface FaceSlotProps {
   slot: FaceSlotType;
@@ -28,7 +35,9 @@ export default function FaceSlotComponent({
 }: FaceSlotProps) {
   const topRef = useRef<THREE.Group>(null);
   const [topTexture, setTopTexture] = useState<THREE.Texture | null>(null);
-  const [bottomTexture, setBottomTexture] = useState<THREE.Texture | null>(null);
+  const [bottomTexture, setBottomTexture] = useState<THREE.Texture | null>(
+    null,
+  );
   const [loadKey, setLoadKey] = useState(0);
 
   const faceWidth = FACE_BASE_SIZE * slot.scale;
@@ -39,13 +48,15 @@ export default function FaceSlotComponent({
   useEffect(() => {
     if (!slot.faceImage) return;
 
-    getSplitTextures(slot.faceImage).then(({ top, bottom }) => {
-      setTopTexture(top);
-      setBottomTexture(bottom);
-      setLoadKey((k) => k + 1); // force remount of meshes
-    }).catch((err) => {
-      console.error(err.message);
-    });
+    getSplitTextures(slot.faceImage)
+      .then(({ top, bottom }) => {
+        setTopTexture(top);
+        setBottomTexture(bottom);
+        setLoadKey((k) => k + 1); // force remount of meshes
+      })
+      .catch((err) => {
+        console.error(err.message);
+      });
   }, [slot.faceImage]);
 
   // Max hinge rotation in radians (~30 degrees fully open)
@@ -76,20 +87,26 @@ export default function FaceSlotComponent({
       {/* Top half — rotates on hinge at bottom-right corner */}
       <group ref={topRef} position={[faceWidth / 2, -topHeight / 2, 0.01]}>
         {/* Mesh offset up and left so group origin is at bottom-right corner */}
-        <mesh key={`top-${loadKey}`} position={[-faceWidth / 2, topHeight / 2, 0]}>
+        <mesh
+          key={`top-${loadKey}`}
+          position={[-faceWidth / 2, topHeight / 2, 0]}
+        >
           <planeGeometry args={[faceWidth, topHeight]} />
           <meshBasicMaterial
-            color={topTexture ? "#ffffff" : "#1a1a1a"}
+            color={topTexture ? '#ffffff' : '#1a1a1a'}
             map={topTexture}
           />
         </mesh>
       </group>
 
       {/* Bottom half — static */}
-      <mesh key={`bottom-${loadKey}`} position={[0, -topHeight / 2 - bottomHeight / 2, 0]}>
+      <mesh
+        key={`bottom-${loadKey}`}
+        position={[0, -topHeight / 2 - bottomHeight / 2, 0]}
+      >
         <planeGeometry args={[faceWidth, bottomHeight]} />
         <meshBasicMaterial
-          color={bottomTexture ? "#ffffff" : "#1a1a1a"}
+          color={bottomTexture ? '#ffffff' : '#1a1a1a'}
           map={bottomTexture}
         />
       </mesh>

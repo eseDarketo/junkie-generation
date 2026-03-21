@@ -5,7 +5,7 @@
 // manages per-face animation parameters (enthusiasm, delay, idle phase).
 // The actual rendering happens in FaceSlot.
 
-"use client";
+'use client';
 
 import { useRef, useMemo } from "react";
 import { FaceAnimParams, generateAnimParams } from "@/lib/mouthMapper";

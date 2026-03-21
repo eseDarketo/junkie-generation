@@ -8,6 +8,7 @@ export interface StoredFace {
   image: string; // Base64 or URL of the face image (JPEG)
   timestamp: number;
   name?: string; // Optional, for famous faces
+  descriptor?: number[]; // 128-dim face descriptor from face-api.js (for identify/matching)
 }
 
 export interface FaceSlot {
@@ -20,7 +21,7 @@ export interface FaceSlot {
   faceImage?: string; // Base64 or URL of the face image
   isFamous: boolean; // Pre-loaded celebrity vs. party guest
   label?: string; // Name (for famous faces, shown on hover/zoom)
-  animationMode: "canadian" | "sprite";
+  animationMode: 'canadian' | 'sprite';
 }
 
 export interface CameraKeyframe {
@@ -51,7 +52,10 @@ export interface VocalMap {
 }
 
 // API contract:
-// POST /api/faces  — body: { image: string, name?: string }
-//                  — response: { success: true }
-// GET  /api/faces  — query: ?since=<timestamp> (optional)
-//                  — response: { faces: StoredFace[] }
+// POST /api/faces     — body: { image: string, name?: string, descriptor?: number[] }
+//                     — response: { success: true }
+// GET  /api/faces     — query: ?since=<timestamp> (optional)
+//                     — response: { faces: StoredFace[] }
+// POST /api/identify  — body: { descriptor: number[128] }
+//                     — response: { match: { id } | null, guestCount: number }
+//                     (server-side matching, phone sends only its own descriptor)

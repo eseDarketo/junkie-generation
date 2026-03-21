@@ -1,16 +1,39 @@
 // ============================================================
 // SceneRenderer — Three.js scene with Ken Burns camera — DEV A
 // ============================================================
-"use client";
+// The heart of the project. Renders the "group photo" canvas
+// with face slots and animates a cinematic Ken Burns camera.
+//
+// Implementation notes:
+// - Use @react-three/fiber Canvas
+// - Orthographic camera over a large 2D plane (4000x2000)
+// - Face slots as textured quads positioned on the plane
+// - Ken Burns: interpolate between CameraKeyframe[] with easing
+// - When new faces arrive (via polling), place them in empty slots
+//
+// See SPEC.md § "SceneRenderer.tsx" for full details.
 
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useRef, useState, useEffect } from "react";
-import * as THREE from "three";
-import type { FaceSlot as FaceSlotType, CameraKeyframe, StoredFace } from "@/types";
-import { generateSlots, findEmptySlot, SCENE_WIDTH, SCENE_HEIGHT, VIP_FACES, DUMMY_FACE } from "@/lib/faceSlots";
-import { preloadFaces } from "@/lib/textureCache";
-import FaceSlotComponent from "./FaceSlot";
-import { useLipSyncParams } from "./LipSyncEngine";
+'use client';
+
+import {
+  DUMMY_FACE,
+  findEmptySlot,
+  generateSlots,
+  SCENE_HEIGHT,
+  SCENE_WIDTH,
+  VIP_FACES,
+} from '@/lib/faceSlots';
+import { preloadFaces } from '@/lib/textureCache';
+import type {
+  CameraKeyframe,
+  FaceSlot as FaceSlotType,
+  StoredFace,
+} from '@/types';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import FaceSlotComponent from './FaceSlot';
+import { useLipSyncParams } from './LipSyncEngine';
 
 // ---- Ken Burns Camera Path ----
 const CAMERA_PATH: CameraKeyframe[] = [
@@ -61,12 +84,12 @@ function KenBurnsCamera({ overview }: { overview: boolean }) {
     const kbX = THREE.MathUtils.lerp(
       current.x * SCENE_WIDTH,
       next.x * SCENE_WIDTH,
-      t
+      t,
     );
     const kbY = THREE.MathUtils.lerp(
       -current.y * SCENE_HEIGHT,
       -next.y * SCENE_HEIGHT,
-      t
+      t,
     );
     const kbZoom = THREE.MathUtils.lerp(current.zoom, next.zoom, t);
 
@@ -171,7 +194,7 @@ export default function SceneRenderer({
             isFamous: true,
             faceImage: VIP_FACES[vipIdx].file,
             label: VIP_FACES[vipIdx].label,
-            animationMode: "canadian" as const,
+            animationMode: 'canadian' as const,
           };
         }
         return {
@@ -179,7 +202,7 @@ export default function SceneRenderer({
           occupied: true,
           isFamous: false,
           faceImage: DUMMY_FACE,
-          animationMode: "canadian" as const,
+          animationMode: 'canadian' as const,
         };
       });
 
@@ -201,9 +224,10 @@ export default function SceneRenderer({
             const updated = [...prev];
             for (const face of faces) {
               // Find a dummy slot (non-VIP, still showing generic face)
-              const dummy = updated.find(
-                (s) => !s.isFamous && s.faceImage === DUMMY_FACE
-              ) || findEmptySlot(updated);
+              const dummy =
+                updated.find(
+                  (s) => !s.isFamous && s.faceImage === DUMMY_FACE,
+                ) || findEmptySlot(updated);
               if (dummy) {
                 const idx = updated.findIndex((s) => s.id === dummy.id);
                 if (idx !== -1) {
@@ -230,13 +254,16 @@ export default function SceneRenderer({
   }, []);
 
   return (
-    <div className="w-full h-full relative" style={{ filter: "grayscale(100%)" }}>
+    <div
+      className="w-full h-full relative"
+      style={{ filter: 'grayscale(100%)' }}
+    >
       {/* Overview toggle button */}
       <button
         onClick={() => setOverview((v) => !v)}
         className="absolute top-4 right-4 z-10 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-lg border border-white/20 transition-all"
       >
-        {overview ? "Ken Burns" : "Full Scene"}
+        {overview ? 'Ken Burns' : 'Full Scene'}
       </button>
 
       <Canvas
@@ -248,7 +275,7 @@ export default function SceneRenderer({
           far: 1000,
         }}
         gl={{ antialias: true, alpha: false }}
-        style={{ background: "#ffffff" }}
+        style={{ background: '#ffffff' }}
       >
         <KenBurnsCamera overview={overview} />
         <SceneContent
