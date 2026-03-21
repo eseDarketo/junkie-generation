@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useWebcam } from './useWebcam';
+import { useFaceDetection } from './useFaceDetection';
+import { processCapture } from '../FaceProcessor';
 import { toast } from 'sonner';
 
 // Custom colors mapped to arbitrary tailwind values to avoid dirtying global configs
@@ -28,6 +30,17 @@ const colors = {
 export function CaptureStation() {
   const { videoRef, stream, isInitializing, error, startWebcam, stopWebcam } = useWebcam();
   const [status, setStatus] = useState<'idle' | 'starting' | 'active' | 'error'>('idle');
+  const { modelsLoaded, currentDetection, samples } = useFaceDetection(videoRef, status === 'active');
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+
+  // Auto capture cooldown logic
+  useEffect(() => {
+    if (currentDetection && currentDetection.confidence > 0.8 && videoRef.current) {
+      processCapture(videoRef.current, currentDetection.box)
+        .then((base64) => setCapturedImage(base64))
+        .catch((err) => console.error('Error processing capture:', err));
+    }
+  }, [currentDetection]);
 
   useEffect(() => {
     if (isInitializing) setStatus('starting');
@@ -130,7 +143,7 @@ export function CaptureStation() {
 
                 {/* Central Bounding Box */}
                 {stream && (
-                  <div className="self-center w-48 h-64 sm:w-64 sm:h-80 border border-[#8ff5ff]/30 relative flex items-center justify-center">
+                  <div className={`self-center w-48 h-64 sm:w-64 sm:h-80 border ${currentDetection ? 'border-[#8ff5ff]' : 'border-[#8ff5ff]/30'} relative flex items-center justify-center transition-colors duration-300`}>
                     <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#8ff5ff]"></div>
                     <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#8ff5ff]"></div>
                     <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[#8ff5ff]"></div>
@@ -144,7 +157,7 @@ export function CaptureStation() {
                     </div>
                     
                     <div className="absolute -bottom-6 left-0 text-[#8ff5ff] text-[10px] font-black tracking-widest bg-[#0c0e10]/60 px-2 py-1 backdrop-blur-sm">
-                      AWAITING_SUBJECT
+                      {currentDetection ? `SUBJECT_LOCKED: ${(currentDetection.confidence * 100).toFixed(1)}%` : 'AWAITING_SUBJECT'}
                     </div>
                   </div>
                 )}
@@ -212,9 +225,13 @@ export function CaptureStation() {
                   <span className="text-[10px] text-[#8ff5ff]">WAITING</span>
                 </div>
                 <div className={`h-48 ${colors.surfaceLowest} rounded border border-[#8ff5ff]/20 overflow-hidden relative group`}>
+                  {capturedImage ? (
+                    <img src={capturedImage} className="w-full h-full object-cover grayscale contrast-150 brightness-75" alt="Biometric Output" />
+                  ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-[#8ff5ff]/50 font-mono text-[10px] tracking-widest">PENDING_FACE_DATA</span>
                     </div>
+                  )}
                   
                   {/* Digital Artifacts */}
                   <div className="absolute inset-0 pointer-events-none border-2 border-[#8ff5ff]/10"></div>
@@ -229,11 +246,11 @@ export function CaptureStation() {
               <div className="grid grid-cols-2 gap-4">
                 <div className={`${colors.surfaceLow} p-3 rounded border ${colors.outlineVariant}/10`}>
                   <p className={`text-[8px] ${colors.onSurfaceVariant} font-bold uppercase tracking-widest mb-1`}>CONFIDENCE</p>
-                  <p className="text-lg font-black text-[#8ff5ff]">0.0%</p>
+                  <p className="text-lg font-black text-[#8ff5ff]">{currentDetection ? (currentDetection.confidence * 100).toFixed(1) : '0.0'}%</p>
                 </div>
                 <div className={`${colors.surfaceLow} p-3 rounded border ${colors.outlineVariant}/10`}>
                   <p className={`text-[8px] ${colors.onSurfaceVariant} font-bold uppercase tracking-widest mb-1`}>SAMPLES</p>
-                  <p className="text-lg font-black text-[#8ff5ff]">0</p>
+                  <p className="text-lg font-black text-[#8ff5ff]">{samples}</p>
                 </div>
               </div>
             </div>
@@ -252,10 +269,10 @@ export function CaptureStation() {
                   <div className="w-2 h-2 rounded-full bg-[#8ff5ff] shadow-[0_0_8px_#8ff5ff]"></div>
                   <span className="text-[10px] font-bold tracking-widest">MODEL_LOAD</span>
                   <div className={`w-16 h-1 ${colors.surfaceLowest} rounded-full overflow-hidden`}>
-                    <div className="h-full bg-[#8ff5ff] w-full"></div>
+                    <div className={`h-full bg-[#8ff5ff] ${modelsLoaded ? 'w-full' : 'w-1/3 animate-pulse'}`}></div>
                   </div>
                 </div>
-                <span className="text-[9px] text-[#8ff5ff] font-bold">READY</span>
+                <span className="text-[9px] text-[#8ff5ff] font-bold">{modelsLoaded ? 'READY' : 'LOADING'}</span>
               </div>
             </div>
 
