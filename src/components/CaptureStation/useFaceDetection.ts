@@ -12,7 +12,7 @@ interface DetectionData {
 
 export function useFaceDetection(videoRef: RefObject<HTMLVideoElement | null>, isActive: boolean) {
   const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [currentDetection, setCurrentDetection] = useState<DetectionData | null>(null);
+  const [detections, setDetections] = useState<DetectionData[]>([]);
   const [samples, setSamples] = useState(0);
 
   // 1. Load models once
@@ -22,7 +22,7 @@ export function useFaceDetection(videoRef: RefObject<HTMLVideoElement | null>, i
       if (typeof window === 'undefined' || !tf) return;
 
       try {
-        // v0.22 face-api internal tf initialization
+        // v1.7.0 tf.ready() equivalent: check if backends are here
         if (tf.getBackend() !== 'webgl') {
           await tf.setBackend('webgl');
         }
@@ -39,42 +39,55 @@ export function useFaceDetection(videoRef: RefObject<HTMLVideoElement | null>, i
     loadModels();
   }, []);
 
-  // 2. Detection loop
+  // 2. Detection loop (Multi-face)
   useEffect(() => {
     if (!modelsLoaded || !isActive) {
-      setCurrentDetection(null);
+      setDetections([]);
       return;
     }
 
-    const intervalId = setInterval(async () => {
-      if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
+    let timerId: NodeJS.Timeout;
+
+    const runDetection = async () => {
+      if (!isActive || !modelsLoaded) return;
+      if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) {
+        timerId = setTimeout(runDetection, 100);
+        return;
+      }
 
       const videoEl = videoRef.current;
-      if (videoEl.videoWidth === 0 || videoEl.videoHeight === 0) return;
-      
-      // We use tinyFaceDetector per spec
-      // Tuning: lower threshold and larger input size for better detection
-      const detectionWithLandmarks = await faceapi
-        .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 }))
-        .withFaceLandmarks();
-
-      if (detectionWithLandmarks) {
-        const { detection, landmarks } = detectionWithLandmarks;
-        setCurrentDetection({
-          box: detection.box,
-          landmarks: landmarks,
-          confidence: detection.score
-        });
-        setSamples((prev) => prev + 1);
-      } else {
-        // Only set null if we don't have a stable detection or want the HUD to clear after a while
-        // Clear on next interval to avoid flickering
-        setCurrentDetection(null);
+      if (videoEl.videoWidth === 0 || videoEl.videoHeight === 0) {
+        timerId = setTimeout(runDetection, 100);
+        return;
       }
-    }, 500); // 500ms loop as per spec
+      
+      try {
+        const allDetections = await faceapi
+          .detectAllFaces(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+          .withFaceLandmarks();
 
-    return () => clearInterval(intervalId);
+        if (allDetections && allDetections.length > 0) {
+          const formatted = allDetections.map(d => ({
+            box: d.detection.box,
+            landmarks: d.landmarks,
+            confidence: d.detection.score
+          }));
+          setDetections(formatted);
+          setSamples((prev) => prev + 1);
+        } else {
+          setDetections([]);
+        }
+      } catch (err) {
+        console.error('Detection loop error:', err);
+      }
+
+      timerId = setTimeout(runDetection, 100);
+    };
+
+    runDetection();
+
+    return () => clearTimeout(timerId);
   }, [modelsLoaded, isActive, videoRef]);
 
-  return { modelsLoaded, currentDetection, samples };
+  return { modelsLoaded, detections, samples };
 }

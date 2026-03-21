@@ -30,7 +30,7 @@ const colors = {
 export function CaptureStation() {
   const { videoRef, stream, isInitializing, error, startWebcam, stopWebcam } = useWebcam();
   const [status, setStatus] = useState<'idle' | 'starting' | 'active' | 'error'>('idle');
-  const { modelsLoaded, currentDetection, samples } = useFaceDetection(videoRef, status === 'active');
+  const { modelsLoaded, detections, samples } = useFaceDetection(videoRef, status === 'active');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [localArchive, setLocalArchive] = useState<string[]>([]);
   const [lastCaptureTime, setLastCaptureTime] = useState(0);
@@ -50,48 +50,55 @@ export function CaptureStation() {
       return;
     }
 
-    if (currentDetection && videoRef.current) {
+    if (detections.length > 0 && videoRef.current) {
       setIsCapturing(true);
       try {
-        const base64 = await processCapture(videoRef.current, currentDetection.box);
-        setCapturedImage(base64);
-        setLastCaptureTime(Date.now());
+        // Capture ALL detected faces
+        const capturePromises = detections.map(async (det) => {
+          const base64 = await processCapture(videoRef.current!, det.box);
+          
+          // 1. Save to Local Storage
+          const existingString = localStorage.getItem('captured_faces');
+          const existing = existingString ? JSON.parse(existingString) : [];
+          const updated = [base64, ...existing].slice(0, 10);
+          localStorage.setItem('captured_faces', JSON.stringify(updated));
+          
+          // 2. POST to /api/faces
+          await fetch('/api/faces', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: base64, name: 'Guest' })
+          });
 
-        // 1. Save to Local Storage
-        const existingString = localStorage.getItem('captured_faces');
-        const existing = existingString ? JSON.parse(existingString) : [];
-        const updated = [base64, ...existing].slice(0, 10);
-        localStorage.setItem('captured_faces', JSON.stringify(updated));
-        setLocalArchive(updated);
-
-        // 2. POST to /api/faces
-        const res = await fetch('/api/faces', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64, name: 'Guest' })
+          return { base64, updated };
         });
+
+        const results = await Promise.all(capturePromises);
         
-        if (res.ok) {
-          toast.success('DATA_UPLINK_SUCCESS', {
-            description: 'Biometric data successfully transmitted.',
+        // Update UI with the last captured face preview
+        if (results.length > 0) {
+          setCapturedImage(results[0].base64);
+          setLocalArchive(results[0].updated);
+          setLastCaptureTime(Date.now());
+          
+          toast.success('MULTI_DATA_UPLINK', {
+            description: `${results.length} biometric profiles transmitted.`,
             duration: 2000,
           });
         }
       } catch (err) {
         console.error('Capture error:', err);
-        toast.error('CAPTURE_ERROR', { description: 'Failed to process biometric data.' });
+        toast.error('CAPTURE_ERROR', { description: 'Failed to process group biometric data.' });
       } finally {
         setIsCapturing(false);
       }
     } else {
-      toast.error('SUBJECT_NOT_LOCKED', { description: 'Position face within detection area.' });
+      toast.error('NO_SUBJECTS_LOCKED', { description: 'Position faces within detection area.' });
     }
   };
 
-  // Auto capture removed, now manual.
-  useEffect(() => {
-    // Only keeping sync with status now.
-  }, [currentDetection]);
+  // Sync effect removed as logic is now in handleCapture
+  useEffect(() => {}, [detections]);
 
   useEffect(() => {
     if (isInitializing) setStatus('starting');
@@ -192,43 +199,34 @@ export function CaptureStation() {
                   </div>
                 </div>
 
-                {/* Central Bounding Box (Dynamic tracking) */}
-                {stream && (
+                {/* Dynamic tracking reticles for multiple faces */}
+                {stream && detections.map((det, idx) => (
                   <div 
-                    style={
-                      currentDetection ? {
-                        position: 'absolute',
-                        // Mirroring logic: face-api x is on raw buffer, UI is scale-x-[-1]
-                        // We use % to avoid having to know container size here (aspect-video)
-                        left: `${100 - ((currentDetection.box.x + currentDetection.box.width) / (videoRef.current?.videoWidth || 1) * 100)}%`,
-                        top: `${(currentDetection.box.y / (videoRef.current?.videoHeight || 1) * 100)}%`,
-                        width: `${(currentDetection.box.width / (videoRef.current?.videoWidth || 1) * 100)}%`,
-                        height: `${(currentDetection.box.height / (videoRef.current?.videoHeight || 1) * 100)}%`,
-                      } : {
-                        left: '50%',
-                        top: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        width: '240px',
-                        height: '320px',
-                      }
-                    }
-                    className={`border ${currentDetection ? 'border-[#8ff5ff]' : 'border-[#8ff5ff]/10'} transition-all duration-300 pointer-events-none flex items-center justify-center`}
+                    key={idx}
+                    style={{
+                      position: 'absolute',
+                      left: `${100 - ((det.box.x + det.box.width) / (videoRef.current?.videoWidth || 1) * 100)}%`,
+                      top: `${(det.box.y / (videoRef.current?.videoHeight || 1) * 100)}%`,
+                      width: `${(det.box.width / (videoRef.current?.videoWidth || 1) * 100)}%`,
+                      height: `${(det.box.height / (videoRef.current?.videoHeight || 1) * 100)}%`,
+                    }}
+                    className="border border-[#8ff5ff] transition-all duration-100 pointer-events-none flex items-center justify-center shadow-[0_0_15px_rgba(143,245,255,0.2)]"
                   >
-                    <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-[#8ff5ff]"></div>
-                    <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-[#8ff5ff]"></div>
-                    <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-[#8ff5ff]"></div>
-                    <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-[#8ff5ff]"></div>
+                    <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#8ff5ff]"></div>
+                    <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-[#8ff5ff]"></div>
+                    <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-[#8ff5ff]"></div>
+                    <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#8ff5ff]"></div>
                     
-                    {/* Bounding Box HUD */}
-                    <div className="grid grid-cols-3 gap-8 opacity-20">
-                      {[...Array(6)].map((_, i) => (
-                        <div key={i} className="w-0.5 h-0.5 bg-[#8ff5ff] rounded-full"></div>
-                      ))}
+                    <div className="absolute -bottom-5 left-0 whitespace-nowrap text-[#8ff5ff] text-[7px] font-black tracking-widest bg-[#0c0e10]/80 px-1 py-0.5 backdrop-blur-sm border border-[#8ff5ff]/20">
+                      ID_{idx.toString().padStart(2, '0')} // {(det.confidence * 100).toFixed(0)}%
                     </div>
-                    
-                    <div className="absolute -bottom-6 left-0 whitespace-nowrap text-[#8ff5ff] text-[8px] font-black tracking-widest bg-[#0c0e10]/60 px-2 py-1 backdrop-blur-sm">
-                      {currentDetection ? `LOCKED: ${(currentDetection.confidence * 100).toFixed(1)}%` : 'SEARCHING...'}
-                    </div>
+                  </div>
+                ))}
+
+                {/* Default searching reticle when no faces */}
+                {stream && detections.length === 0 && (
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-64 border border-[#8ff5ff]/10 flex items-center justify-center opacity-50">
+                    <span className="text-[10px] text-[#8ff5ff]/30 font-bold tracking-[0.3em] uppercase animate-pulse">Scanning_Area</span>
                   </div>
                 )}
 
@@ -323,11 +321,11 @@ export function CaptureStation() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className={`${colors.surfaceLow} p-3 rounded border ${colors.outlineVariant}/10`}>
-                  <p className={`text-[8px] ${colors.onSurfaceVariant} font-bold uppercase tracking-widest mb-1`}>CONFIDENCE</p>
-                  <p className="text-lg font-black text-[#8ff5ff]">{currentDetection ? (currentDetection.confidence * 100).toFixed(1) : '0.0'}%</p>
+                  <p className={`text-[8px] ${colors.onSurfaceVariant} font-bold uppercase tracking-widest mb-1`}>SUBJECTS</p>
+                  <p className="text-lg font-black text-[#8ff5ff]">{detections.length}</p>
                 </div>
                 <div className={`${colors.surfaceLow} p-3 rounded border ${colors.outlineVariant}/10`}>
-                  <p className={`text-[8px] ${colors.onSurfaceVariant} font-bold uppercase tracking-widest mb-1`}>SAMPLES</p>
+                  <p className={`text-[8px] ${colors.onSurfaceVariant} font-bold uppercase tracking-widest mb-1`}>SCAN_OPS</p>
                   <p className="text-lg font-black text-[#8ff5ff]">{samples}</p>
                 </div>
               </div>
