@@ -34,6 +34,7 @@ export function CaptureStation() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [localArchive, setLocalArchive] = useState<string[]>([]);
   const [lastCaptureTime, setLastCaptureTime] = useState(0);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   // Initial load of archive
   useEffect(() => {
@@ -41,48 +42,56 @@ export function CaptureStation() {
     setLocalArchive(existing);
   }, []);
 
-  // Auto capture cooldown logic & saving
-  useEffect(() => {
+  // Manual Shutter Function
+  const handleCapture = async () => {
     const now = Date.now();
-    const canCapture = now - lastCaptureTime > 3000; // 3 second cooldown
-
-    if (canCapture && currentDetection && currentDetection.confidence > 0.5 && videoRef.current) {
-      processCapture(videoRef.current, currentDetection.box)
-        .then(async (base64: string) => {
-          setCapturedImage(base64);
-          setLastCaptureTime(Date.now());
-
-          // 1. Save to Local Storage (per user request)
-          try {
-            const existingString = localStorage.getItem('captured_faces');
-            const existing = existingString ? JSON.parse(existingString) : [];
-            const updated = [base64, ...existing].slice(0, 10);
-            localStorage.setItem('captured_faces', JSON.stringify(updated));
-            setLocalArchive(updated);
-          } catch (e) { 
-            console.error('LocalStorage error', e); 
-          }
-
-          // 2. POST to /api/faces
-          try {
-            const res = await fetch('/api/faces', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image: base64, name: 'Guest' })
-            });
-            if (res.ok) {
-              toast.success('DATA_UPLINK_SUCCESS', {
-                description: 'Face biometric data uploaded to central server.',
-                duration: 2000,
-              });
-            }
-          } catch (err: unknown) {
-            console.error('API POST failed:', err);
-          }
-        })
-        .catch((err: Error) => console.error('Error processing capture:', err));
+    if (now - lastCaptureTime < 3000) {
+      toast.warning('COOLDOWN_ACTIVE', { description: 'Wait 3 seconds between captures.' });
+      return;
     }
-  }, [currentDetection, lastCaptureTime]);
+
+    if (currentDetection && videoRef.current) {
+      setIsCapturing(true);
+      try {
+        const base64 = await processCapture(videoRef.current, currentDetection.box);
+        setCapturedImage(base64);
+        setLastCaptureTime(Date.now());
+
+        // 1. Save to Local Storage
+        const existingString = localStorage.getItem('captured_faces');
+        const existing = existingString ? JSON.parse(existingString) : [];
+        const updated = [base64, ...existing].slice(0, 10);
+        localStorage.setItem('captured_faces', JSON.stringify(updated));
+        setLocalArchive(updated);
+
+        // 2. POST to /api/faces
+        const res = await fetch('/api/faces', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64, name: 'Guest' })
+        });
+        
+        if (res.ok) {
+          toast.success('DATA_UPLINK_SUCCESS', {
+            description: 'Biometric data successfully transmitted.',
+            duration: 2000,
+          });
+        }
+      } catch (err) {
+        console.error('Capture error:', err);
+        toast.error('CAPTURE_ERROR', { description: 'Failed to process biometric data.' });
+      } finally {
+        setIsCapturing(false);
+      }
+    } else {
+      toast.error('SUBJECT_NOT_LOCKED', { description: 'Position face within detection area.' });
+    }
+  };
+
+  // Auto capture removed, now manual.
+  useEffect(() => {
+    // Only keeping sync with status now.
+  }, [currentDetection]);
 
   useEffect(() => {
     if (isInitializing) setStatus('starting');
@@ -91,11 +100,11 @@ export function CaptureStation() {
     else setStatus('idle');
   }, [isInitializing, stream, error]);
 
-  const toggleWebcam = () => {
-    if (stream) {
-      stopWebcam();
-    } else {
+  const handleMainAction = () => {
+    if (!stream) {
       startWebcam();
+    } else {
+      handleCapture();
     }
   };
 
@@ -183,23 +192,42 @@ export function CaptureStation() {
                   </div>
                 </div>
 
-                {/* Central Bounding Box */}
+                {/* Central Bounding Box (Dynamic tracking) */}
                 {stream && (
-                  <div className={`self-center w-48 h-64 sm:w-64 sm:h-80 border ${currentDetection ? 'border-[#8ff5ff]' : 'border-[#8ff5ff]/30'} relative flex items-center justify-center transition-colors duration-300`}>
-                    <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#8ff5ff]"></div>
-                    <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#8ff5ff]"></div>
-                    <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[#8ff5ff]"></div>
-                    <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[#8ff5ff]"></div>
+                  <div 
+                    style={
+                      currentDetection ? {
+                        position: 'absolute',
+                        // Mirroring logic: face-api x is on raw buffer, UI is scale-x-[-1]
+                        // We use % to avoid having to know container size here (aspect-video)
+                        left: `${100 - ((currentDetection.box.x + currentDetection.box.width) / (videoRef.current?.videoWidth || 1) * 100)}%`,
+                        top: `${(currentDetection.box.y / (videoRef.current?.videoHeight || 1) * 100)}%`,
+                        width: `${(currentDetection.box.width / (videoRef.current?.videoWidth || 1) * 100)}%`,
+                        height: `${(currentDetection.box.height / (videoRef.current?.videoHeight || 1) * 100)}%`,
+                      } : {
+                        left: '50%',
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '240px',
+                        height: '320px',
+                      }
+                    }
+                    className={`border ${currentDetection ? 'border-[#8ff5ff]' : 'border-[#8ff5ff]/10'} transition-all duration-300 pointer-events-none flex items-center justify-center`}
+                  >
+                    <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-[#8ff5ff]"></div>
+                    <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-[#8ff5ff]"></div>
+                    <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-[#8ff5ff]"></div>
+                    <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-[#8ff5ff]"></div>
                     
                     {/* Bounding Box HUD */}
-                    <div className="grid grid-cols-3 gap-8 opacity-40">
+                    <div className="grid grid-cols-3 gap-8 opacity-20">
                       {[...Array(6)].map((_, i) => (
-                        <div key={i} className="w-1 h-1 bg-[#8ff5ff] rounded-full"></div>
+                        <div key={i} className="w-0.5 h-0.5 bg-[#8ff5ff] rounded-full"></div>
                       ))}
                     </div>
                     
-                    <div className="absolute -bottom-6 left-0 text-[#8ff5ff] text-[10px] font-black tracking-widest bg-[#0c0e10]/60 px-2 py-1 backdrop-blur-sm">
-                      {currentDetection ? `SUBJECT_LOCKED: ${(currentDetection.confidence * 100).toFixed(1)}%` : 'AWAITING_SUBJECT'}
+                    <div className="absolute -bottom-6 left-0 whitespace-nowrap text-[#8ff5ff] text-[8px] font-black tracking-widest bg-[#0c0e10]/60 px-2 py-1 backdrop-blur-sm">
+                      {currentDetection ? `LOCKED: ${(currentDetection.confidence * 100).toFixed(1)}%` : 'SEARCHING...'}
                     </div>
                   </div>
                 )}
@@ -220,12 +248,20 @@ export function CaptureStation() {
                 </p>
               </div>
               <button 
-                onClick={toggleWebcam}
-                disabled={isInitializing}
-                className={`bg-gradient-to-r ${stream ? 'from-red-900 to-red-800 text-red-100' : `from-[#8ff5ff] ${colors.primaryDim} text-[#005d63]`} font-black px-8 py-4 rounded-lg tracking-[0.15em] shadow-[0_0_20px_rgba(143,245,255,0.2)] hover:scale-105 transition-all outline-none`}
+                onClick={handleMainAction}
+                disabled={isInitializing || isCapturing}
+                className={`grow sm:grow-0 bg-gradient-to-r ${!stream ? `from-[#8ff5ff] ${colors.primaryDim} text-[#005d63]` : `from-[#8ff5ff] to-[#00deec] text-[#005d63]`} font-black px-12 py-4 rounded-lg tracking-[0.15em] shadow-[0_0_20px_rgba(143,245,255,0.2)] hover:scale-105 transition-all outline-none`}
               >
-                {isInitializing ? 'LOADING_LINK...' : stream ? 'TERMINATE_LINK' : 'INITIALIZE_CAPTURE'}
+                {isInitializing ? 'LOADING_LINK...' : !stream ? 'INITIALIZE_SYSTEM' : isCapturing ? 'CAPTURING...' : 'INITIALIZE_CAPTURE'}
               </button>
+              {stream && (
+                <button 
+                  onClick={stopWebcam}
+                  className="text-red-500/60 hover:text-red-500 text-[10px] font-bold tracking-widest uppercase transition-colors"
+                >
+                  Terminate Link
+                </button>
+              )}
             </div>
           </div>
 
@@ -268,7 +304,7 @@ export function CaptureStation() {
                 </div>
                 <div className={`h-48 ${colors.surfaceLowest} rounded border border-[#8ff5ff]/20 overflow-hidden relative group`}>
                   {capturedImage ? (
-                    <img src={capturedImage} className="w-full h-full object-cover grayscale contrast-150 brightness-75" alt="Biometric Output" />
+                    <img src={capturedImage} className="w-full h-full object-cover contrast-150 brightness-75" alt="Biometric Output" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-[#8ff5ff]/50 font-mono text-[10px] tracking-widest">PENDING_FACE_DATA</span>
