@@ -1,10 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { processCapture } from './FaceProcessor';
-import { useFaceDetection } from './useFaceDetection';
+import { DetectionData, useFaceDetection } from './useFaceDetection';
 import { useWebcam } from './useWebcam';
+
+const MATCH_THRESHOLD = 0.6;
+
+function euclideanDistance(a: Float32Array, b: Float32Array): number {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) sum += (a[i] - b[i]) ** 2;
+  return Math.sqrt(sum);
+}
+
+function isKnownFace(descriptor: Float32Array, known: Float32Array[]): boolean {
+  return known.some((k) => euclideanDistance(descriptor, k) < MATCH_THRESHOLD);
+}
 
 // Custom colors mapped to arbitrary tailwind values to avoid dirtying global configs
 const colors = {
@@ -39,8 +51,8 @@ export function CaptureStation() {
   );
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [localArchive, setLocalArchive] = useState<string[]>([]);
-  const [lastCaptureTime, setLastCaptureTime] = useState(0);
   const [isCapturing, setIsCapturing] = useState(false);
+  const knownDescriptors = useRef<Float32Array[]>([]);
 
   // Initial load of archive
   useEffect(() => {
@@ -48,86 +60,80 @@ export function CaptureStation() {
     setLocalArchive(existing);
   }, []);
 
-  // Manual Shutter Function
+  // Filter detections to only new (unknown) faces
+  const getNewFaces = (dets: DetectionData[]): DetectionData[] =>
+    dets.filter(
+      (d) =>
+        d.descriptor && !isKnownFace(d.descriptor, knownDescriptors.current),
+    );
+
+  // Capture only faces not previously seen
   const handleCapture = async () => {
-    const now = Date.now();
-    if (now - lastCaptureTime < 3000) {
-      toast.warning('COOLDOWN_ACTIVE', {
-        description: 'Wait 3 seconds between captures.',
-      });
-      return;
-    }
+    const newFaces = getNewFaces(detections);
+    if (newFaces.length === 0 || !videoRef.current) return;
 
-    if (detections.length > 0 && videoRef.current) {
-      setIsCapturing(true);
-      try {
-        // Capture ALL detected faces
-        const capturePromises = detections.map(async (det) => {
-          const base64 = await processCapture(
-            videoRef.current!,
-            det.box,
-            det.landmarks,
-          );
+    setIsCapturing(true);
+    try {
+      const capturePromises = newFaces.map(async (det) => {
+        const base64 = await processCapture(
+          videoRef.current!,
+          det.box,
+          det.landmarks,
+        );
 
-          // 1. Save to Local Storage
-          const existingString = localStorage.getItem('captured_faces');
-          const existing = existingString ? JSON.parse(existingString) : [];
-          const updated = [base64, ...existing].slice(0, 10);
-          localStorage.setItem('captured_faces', JSON.stringify(updated));
+        // 1. Save to Local Storage
+        const existingString = localStorage.getItem('captured_faces');
+        const existing = existingString ? JSON.parse(existingString) : [];
+        const updated = [base64, ...existing].slice(0, 10);
+        localStorage.setItem('captured_faces', JSON.stringify(updated));
 
-          // 2. POST to /api/faces (include descriptor for /identify matching)
-          await fetch('/api/faces', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              image: base64,
-              name: 'Guest',
-              descriptor: det.descriptor
-                ? Array.from(det.descriptor)
-                : undefined,
-            }),
-          });
-
-          return { base64, updated };
+        // 2. POST to /api/faces (include descriptor for /identify matching)
+        await fetch('/api/faces', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: base64,
+            name: 'Guest',
+            descriptor: det.descriptor ? Array.from(det.descriptor) : undefined,
+          }),
         });
 
-        const results = await Promise.all(capturePromises);
-
-        // Update UI with the last captured face preview
-        if (results.length > 0) {
-          setCapturedImage(results[0].base64);
-          setLocalArchive(results[0].updated);
-          setLastCaptureTime(Date.now());
-
-          toast.success('MULTI_DATA_UPLINK', {
-            description: `${results.length} biometric profiles transmitted.`,
-            duration: 2000,
-          });
+        // 3. Remember this face so we don't capture it again
+        if (det.descriptor) {
+          knownDescriptors.current.push(det.descriptor);
         }
-      } catch (err) {
-        console.error('Capture error:', err);
-        toast.error('CAPTURE_ERROR', {
-          description: 'Failed to process group biometric data.',
-        });
-      } finally {
-        setIsCapturing(false);
-      }
-    } else {
-      toast.error('NO_SUBJECTS_LOCKED', {
-        description: 'Position faces within detection area.',
+
+        return { base64, updated };
       });
+
+      const results = await Promise.all(capturePromises);
+
+      if (results.length > 0) {
+        setCapturedImage(results[0].base64);
+        setLocalArchive(results[0].updated);
+
+        toast.success('MULTI_DATA_UPLINK', {
+          description: `${results.length} new biometric profile(s) transmitted.`,
+          duration: 2000,
+        });
+      }
+    } catch (err) {
+      console.error('Capture error:', err);
+      toast.error('CAPTURE_ERROR', {
+        description: 'Failed to process group biometric data.',
+      });
+    } finally {
+      setIsCapturing(false);
     }
   };
 
-  // Multi-Face Auto-shutter logic
+  // Auto-shutter: fires when new (unknown) faces appear
   useEffect(() => {
-    if (status !== 'active' || detections.length === 0 || isCapturing) return;
-
-    const now = Date.now();
-    if (now - lastCaptureTime > 3000) {
+    if (status !== 'active' || isCapturing) return;
+    if (getNewFaces(detections).length > 0) {
       handleCapture();
     }
-  }, [detections, status, isCapturing, lastCaptureTime]);
+  }, [detections, status, isCapturing]);
 
   useEffect(() => {
     if (isInitializing) setStatus('starting');
@@ -525,6 +531,7 @@ export function CaptureStation() {
                   onClick={() => {
                     localStorage.removeItem('captured_faces');
                     setLocalArchive([]);
+                    knownDescriptors.current = [];
                   }}
                   className="text-[8px] text-red-500/50 hover:text-red-500 uppercase font-bold tracking-widest text-right transition-colors"
                 >
