@@ -32,8 +32,14 @@ export function CaptureStation() {
   const [status, setStatus] = useState<'idle' | 'starting' | 'active' | 'error'>('idle');
   const { modelsLoaded, currentDetection, samples } = useFaceDetection(videoRef, status === 'active');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-
+  const [localArchive, setLocalArchive] = useState<string[]>([]);
   const [lastCaptureTime, setLastCaptureTime] = useState(0);
+
+  // Initial load of archive
+  useEffect(() => {
+    const existing = JSON.parse(localStorage.getItem('captured_faces') || '[]');
+    setLocalArchive(existing);
+  }, []);
 
   // Auto capture cooldown logic & saving
   useEffect(() => {
@@ -50,7 +56,9 @@ export function CaptureStation() {
           try {
             const existingString = localStorage.getItem('captured_faces');
             const existing = existingString ? JSON.parse(existingString) : [];
-            localStorage.setItem('captured_faces', JSON.stringify([base64, ...existing].slice(0, 10)));
+            const updated = [base64, ...existing].slice(0, 10);
+            localStorage.setItem('captured_faces', JSON.stringify(updated));
+            setLocalArchive(updated);
           } catch (e) { 
             console.error('LocalStorage error', e); 
           }
@@ -300,6 +308,13 @@ export function CaptureStation() {
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${stream ? 'bg-[#8ff5ff] shadow-[0_0_8px_#8ff5ff]' : 'bg-[#46484a]'}`}></div>
+                  <span className="text-[10px] font-bold tracking-widest uppercase">UPLINK_STATUS</span>
+                </div>
+                <span className={`text-[9px] font-bold ${stream ? 'text-[#8ff5ff]' : 'text-[#46484a]'}`}>{stream ? 'SECURE' : 'OFFLINE'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-[#8ff5ff] shadow-[0_0_8px_#8ff5ff]"></div>
                   <span className="text-[10px] font-bold tracking-widest">MODEL_LOAD</span>
                   <div className={`w-16 h-1 ${colors.surfaceLowest} rounded-full overflow-hidden`}>
@@ -308,6 +323,37 @@ export function CaptureStation() {
                 </div>
                 <span className="text-[9px] text-[#8ff5ff] font-bold">{modelsLoaded ? 'READY' : 'LOADING'}</span>
               </div>
+            </div>
+
+            {/* Local Archive Module */}
+            <div className={`${colors.surfaceMed} border ${colors.outlineVariant}/10 rounded-lg p-6 flex flex-col gap-4`}>
+              <div className={`flex items-center justify-between border-b ${colors.outlineVariant}/10 pb-4`}>
+                <span className="text-[#8ff5ff] font-bold text-xs tracking-widest uppercase">LOCAL_BIOMETRIC_ARCHIVE</span>
+                <span className="text-[9px] text-[#aaabad]">{localArchive.length}/10</span>
+              </div>
+              
+              <div className="grid grid-cols-4 gap-2">
+                {localArchive.length > 0 ? (
+                  localArchive.map((img, idx) => (
+                    <div key={idx} className={`aspect-square relative rounded border ${colors.outlineVariant}/20 overflow-hidden group`}>
+                      <img src={img} className="w-full h-full object-cover grayscale brightness-75 hover:brightness-100 transition-all duration-300" alt="Archive" />
+                      <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-4 h-20 flex items-center justify-center border border-dashed border-[#46484a]/30 rounded">
+                    <span className="text-[9px] text-[#46484a] uppercase tracking-widest">Archive empty</span>
+                  </div>
+                )}
+              </div>
+              {localArchive.length > 0 && (
+                <button 
+                  onClick={() => { localStorage.removeItem('captured_faces'); setLocalArchive([]); }}
+                  className="text-[8px] text-red-500/50 hover:text-red-500 uppercase font-bold tracking-widest text-right transition-colors"
+                >
+                  Clear Archive
+                </button>
+              )}
             </div>
 
           </div>
