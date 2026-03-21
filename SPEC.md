@@ -45,6 +45,20 @@ This is a **hackathon MVP** — 8-hour build target. Zero AI/ML inference at run
                                │  - Social share  │
                                └──────────────────┘
                                     [DEV B]
+                                         ▲
+                                         │
+                               ┌──────────────────┐
+                               │  IDENTIFY PAGE   │
+                               │  /identify       │
+                               │                  │
+                               │  - Front camera  │
+                               │  - face-api.js   │
+                               │    descriptor    │
+                               │    matching      │
+                               │  - Redirects to  │
+                               │    /share/[id]   │
+                               └──────────────────┘
+                                  [Guest's phone]
 ```
 
 ---
@@ -77,6 +91,8 @@ partyface/
 │   │   │   └── page.tsx          # Webcam capture station
 │   │   ├── display/
 │   │   │   └── page.tsx          # Main display screen (the big screen)
+│   │   ├── identify/
+│   │   │   └── page.tsx          # Guest self-identification (camera matching)
 │   │   └── share/
 │   │       └── [id]/
 │   │           └── page.tsx      # Individual avatar share page
@@ -85,6 +101,7 @@ partyface/
 │   │   ├── FaceSlot.tsx          # Individual face in the group photo
 │   │   ├── LipSyncEngine.tsx     # Audio-reactive mouth animation controller (Canadian + sprite modes)
 │   │   ├── CaptureStation.tsx    # Webcam + face detection UI
+│   │   ├── IdentifyStation.tsx   # Camera-based guest self-identification
 │   │   ├── FaceProcessor.ts      # Face crop + style filter pipeline
 │   │   └── MusicPlayer.tsx       # Audio player + Web Audio analyzer
 │   ├── lib/
@@ -110,6 +127,7 @@ partyface/
 This is the heart of the project. It renders the "group photo" and animates the camera.
 
 **Implementation approach:**
+
 - Use Three.js with an orthographic camera looking at a large 2D plane
 - The "group photo" is a large canvas texture (e.g., 4000x2000 pixels) mapped onto a plane
 - Face slots are positioned on this canvas at pre-defined coordinates
@@ -118,19 +136,20 @@ This is the heart of the project. It renders the "group photo" and animates the 
 - The camera path can be pre-scripted as a series of keyframes: `{ x, y, zoom, duration }`
 
 **Ken Burns keyframe example:**
+
 ```typescript
 interface CameraKeyframe {
-  x: number;          // center X on the canvas (0-1 normalized)
-  y: number;          // center Y on the canvas (0-1 normalized)
-  zoom: number;       // 1 = full scene, 3 = close-up on a few faces
-  duration: number;   // seconds to interpolate to this keyframe
+  x: number; // center X on the canvas (0-1 normalized)
+  y: number; // center Y on the canvas (0-1 normalized)
+  zoom: number; // 1 = full scene, 3 = close-up on a few faces
+  duration: number; // seconds to interpolate to this keyframe
 }
 
 const cameraPath: CameraKeyframe[] = [
   { x: 0.2, y: 0.3, zoom: 1.5, duration: 8 },
-  { x: 0.7, y: 0.5, zoom: 2.5, duration: 10 },  // zoom into a cluster
+  { x: 0.7, y: 0.5, zoom: 2.5, duration: 10 }, // zoom into a cluster
   { x: 0.5, y: 0.8, zoom: 1.2, duration: 6 },
-  { x: 0.9, y: 0.2, zoom: 3.0, duration: 12 },   // close-up on one face
+  { x: 0.9, y: 0.2, zoom: 3.0, duration: 12 }, // close-up on one face
   // ... loops back to start
 ];
 ```
@@ -144,14 +163,14 @@ Pre-defined positions for faces in the group photo, arranged like a graduation p
 ```typescript
 interface FaceSlot {
   id: string;
-  x: number;           // X position on canvas (pixels)
-  y: number;           // Y position on canvas (pixels)
-  scale: number;       // Size multiplier (front row bigger, back row smaller)
-  row: number;         // Which row (for depth/overlap ordering)
+  x: number; // X position on canvas (pixels)
+  y: number; // Y position on canvas (pixels)
+  scale: number; // Size multiplier (front row bigger, back row smaller)
+  row: number; // Which row (for depth/overlap ordering)
   occupied: boolean;
-  faceImage?: string;  // Base64 or URL of the face image
-  isFamous: boolean;   // Pre-loaded celebrity vs. party guest
-  label?: string;      // Name (for famous faces, shown on hover/zoom)
+  faceImage?: string; // Base64 or URL of the face image
+  isFamous: boolean; // Pre-loaded celebrity vs. party guest
+  label?: string; // Name (for famous faces, shown on hover/zoom)
 }
 ```
 
@@ -168,6 +187,7 @@ Generate 40-50 slots arranged in 4-5 rows. Back rows have smaller scale, front r
 Inspired by how Canadians speak in South Park: the face is split horizontally in half. The top half hinges upward (rotates around the split line) to create a Pac-Man-like mouth opening. This is the **primary animation mode** for the hackathon because it requires zero extra assets — just the face image itself.
 
 **How it works:**
+
 1. Each face image is split into two halves at ~55% from the top (just below the nose):
    - **Top half:** forehead, eyes, nose — this is the part that rotates
    - **Bottom half:** chin, jaw — stays fixed
@@ -184,20 +204,48 @@ Inspired by how Canadians speak in South Park: the face is split horizontally in
 7. Optional: add very slight random "idle" movement (±1-2°) when amplitude is low, so faces don't look frozen during quiet parts
 
 **Implementation detail for the split:**
+
 ```typescript
 // When loading a face texture, create two cropped versions:
-function splitFace(faceCanvas: HTMLCanvasElement): { top: HTMLCanvasElement, bottom: HTMLCanvasElement } {
+function splitFace(faceCanvas: HTMLCanvasElement): {
+  top: HTMLCanvasElement;
+  bottom: HTMLCanvasElement;
+} {
   const splitY = Math.floor(faceCanvas.height * 0.55); // Split at 55% from top
 
   const topCanvas = document.createElement('canvas');
   topCanvas.width = faceCanvas.width;
   topCanvas.height = splitY;
-  topCanvas.getContext('2d')!.drawImage(faceCanvas, 0, 0, faceCanvas.width, splitY, 0, 0, faceCanvas.width, splitY);
+  topCanvas
+    .getContext('2d')!
+    .drawImage(
+      faceCanvas,
+      0,
+      0,
+      faceCanvas.width,
+      splitY,
+      0,
+      0,
+      faceCanvas.width,
+      splitY,
+    );
 
   const bottomCanvas = document.createElement('canvas');
   bottomCanvas.width = faceCanvas.width;
   bottomCanvas.height = faceCanvas.height - splitY;
-  bottomCanvas.getContext('2d')!.drawImage(faceCanvas, 0, splitY, faceCanvas.width, faceCanvas.height - splitY, 0, 0, faceCanvas.width, faceCanvas.height - splitY);
+  bottomCanvas
+    .getContext('2d')!
+    .drawImage(
+      faceCanvas,
+      0,
+      splitY,
+      faceCanvas.width,
+      faceCanvas.height - splitY,
+      0,
+      0,
+      faceCanvas.width,
+      faceCanvas.height - splitY,
+    );
 
   return { top: topCanvas, bottom: bottomCanvas };
 }
@@ -211,6 +259,7 @@ function splitFace(faceCanvas: HTMLCanvasElement): { top: HTMLCanvasElement, bot
 ```
 
 **Why this works so well:**
+
 - Zero extra assets (no mouth sprites to prepare)
 - Inherently comedic — the South Park Canadian mouth IS the joke
 - Looks intentionally stylized, so quality concerns vanish
@@ -224,6 +273,7 @@ function splitFace(faceCanvas: HTMLCanvasElement): { top: HTMLCanvasElement, bot
 This is the more polished approach using pre-made mouth shape images overlaid on the face. **Implement this only if time permits after the Canadian mouth is working.** If implemented, randomly assign Mode A or Mode B to each face slot for visual variety.
 
 **How it works:**
+
 1. 6 mouth shape sprites (see assets checklist) are pre-loaded as textures
 2. Amplitude maps to a mouth shape index:
    - `0.0 - 0.1` → closed (index 0)
@@ -240,6 +290,7 @@ This is the more polished approach using pre-made mouth shape images overlaid on
 ---
 
 **Shared across both modes:**
+
 - `MusicPlayer` component plays the current track and feeds audio to a Web Audio `AnalyserNode`
 - Every animation frame, `audioAnalyzer.ts` extracts the current RMS amplitude (0-1 range)
 - Each face slot applies its own delay offset and enthusiasm factor to the shared amplitude
@@ -250,6 +301,7 @@ This is the more polished approach using pre-made mouth shape images overlaid on
 **Route:** `/capture` — runs on a separate device (laptop/tablet) at the entrance.
 
 **Flow:**
+
 1. On page load, request webcam access via `navigator.mediaDevices.getUserMedia`
 2. Show live video feed on screen (subtle, not the main attraction)
 3. Run face-api.js detection continuously (every 500ms is fine)
@@ -267,6 +319,7 @@ This is the more polished approach using pre-made mouth shape images overlaid on
 8. The capture should work somewhat automatically — the idea is guests walk past and their faces are grabbed without them actively posing
 
 **face-api.js models needed (loaded from public/models/):**
+
 - `tinyFaceDetector` — fast face detection
 - `faceLandmark68Net` — for face bounding box refinement
 
@@ -275,6 +328,7 @@ This is the more polished approach using pre-made mouth shape images overlaid on
 Apply a consistent visual style to all faces so celebrity PNGs and webcam captures look cohesive.
 
 **Recommended filter stack (applied via Canvas 2D context):**
+
 ```typescript
 function applyStyleFilter(canvas: HTMLCanvasElement): HTMLCanvasElement {
   const ctx = canvas.getContext('2d');
@@ -320,15 +374,17 @@ GET  /api/faces?since=<timestamp>  — Display polls for only NEW faces since la
 ```
 
 **In-memory store (`faceStore.ts`):**
+
 ```typescript
 // lib/faceStore.ts
 // Simple module-level storage. Resets when the server restarts, which is fine for a hackathon.
 
 interface StoredFace {
   id: string;
-  image: string;         // Base64 PNG, cropped & filtered face
+  image: string; // Base64 PNG, cropped & filtered face
   timestamp: number;
-  name?: string;         // Optional, for famous faces
+  name?: string; // Optional, for famous faces
+  descriptor?: number[]; // 128-dim face descriptor (for /identify matching)
 }
 
 let faces: StoredFace[] = [];
@@ -342,11 +398,12 @@ export function getAllFaces(): StoredFace[] {
 }
 
 export function getFacesSince(timestamp: number): StoredFace[] {
-  return faces.filter(f => f.timestamp > timestamp);
+  return faces.filter((f) => f.timestamp > timestamp);
 }
 ```
 
 **API route implementation (`app/api/faces/route.ts`):**
+
 ```typescript
 import { addFace, getAllFaces, getFacesSince } from '@/lib/faceStore';
 import { NextRequest, NextResponse } from 'next/server';
@@ -381,7 +438,7 @@ useEffect(() => {
     const res = await fetch(`/api/faces?since=${lastPoll}`);
     const { faces } = await res.json();
     if (faces.length > 0) {
-      faces.forEach(face => addFaceToScene(face));
+      faces.forEach((face) => addFaceToScene(face));
       setLastPoll(Date.now());
     }
   }, 2500); // poll every 2.5 seconds
@@ -391,6 +448,7 @@ useEffect(() => {
 
 **CaptureStation push:**
 After processing a face, the capture station simply POSTs to the local API:
+
 ```typescript
 await fetch('/api/faces', {
   method: 'POST',
@@ -400,6 +458,7 @@ await fetch('/api/faces', {
 ```
 
 **Why this works for the MVP:**
+
 - Zero external dependencies (no Firebase account, no API keys, no env vars)
 - Both routes run on `localhost:3000` — same machine, same server
 - In-memory storage is fast and simple. Data doesn't survive server restart, but that's fine for a demo
@@ -408,6 +467,7 @@ await fetch('/api/faces', {
 ### 7. MusicPlayer.tsx — Audio Playback + Analysis
 
 **Responsibilities:**
+
 - Play music tracks from `/public/music/`
 - Create Web Audio `AudioContext` and `AnalyserNode`
 - Connect: `audioElement → analyserNode → destination`
@@ -433,10 +493,39 @@ export function getAmplitude(analyser: AnalyserNode): number {
 ### 8. Share Page — /share/[id]
 
 **Nice-to-have for the hackathon.** If time permits:
+
 - Shows the guest's filtered face with lip-sync animation playing
 - Uses `HTMLCanvasElement.captureStream()` + MediaRecorder to export a short GIF/video
 - "Share on Instagram" button (just opens IG with the image)
 - QR code displayed on the main screen links here
+
+### 9. Identify Page — /identify
+
+**Guest self-identification page.** Guests open `/identify` on their phone to find their captured avatar using face recognition. **Matching happens server-side** — the phone never downloads other guests' data.
+
+**How it works:**
+
+1. Phone loads face-api.js models: `tinyFaceDetector`, `faceLandmark68Net`, `faceRecognitionNet`
+2. Activates front camera and runs face detection every ~800ms
+3. Extracts 128-dim face descriptor locally (~512 bytes)
+4. Sends descriptor to `POST /api/identify` — server compares against all stored descriptors
+5. Server returns `{ match: { id } }` or `{ match: null }`
+6. On match → brief "Found you!" animation → redirect to `/share/[id]`
+7. After 20s with no match → "Not found" with retry option
+
+**Why server-side matching:**
+
+- Phone never downloads other guests' face images or descriptors
+- Matching threshold and logic can be tuned centrally
+- Only ~512 bytes sent per scan (128 floats), response is a single ID
+
+**Requires:**
+
+- `face_recognition_model` weights in `public/models/` (in addition to existing models)
+- `StoredFace.descriptor` field (optional `number[]`) — the capture station should extract and POST descriptors alongside face images
+- `POST /api/identify` — receives `{ descriptor: number[128] }`, returns `{ match: { id } | null, guestCount }`
+
+**Full spec:** See `docs/specs/features/IDENTIFY_PAGE.md`
 
 ---
 
@@ -456,6 +545,7 @@ This project is built by **two developers working in parallel** on the same code
 ### DEV A — Display & Animation (the "wow" screen)
 
 **Owns these files:**
+
 ```
 src/app/display/page.tsx
 src/app/page.tsx                  # Landing/admin page
@@ -469,6 +559,7 @@ src/lib/mouthMapper.ts
 ```
 
 **Responsibilities:**
+
 - Three.js scene setup with @react-three/fiber
 - Ken Burns camera animation (keyframe system with easing)
 - Face grid layout (40-50 slots, 4-5 rows, graduation photo arrangement)
@@ -493,6 +584,7 @@ src/lib/mouthMapper.ts
 ### DEV B — Capture Pipeline & API
 
 **Owns these files:**
+
 ```
 src/app/capture/page.tsx
 src/app/api/faces/route.ts
@@ -504,6 +596,7 @@ src/lib/imageFilter.ts
 ```
 
 **Responsibilities:**
+
 - `/api/faces` API route (GET and POST) with in-memory store
 - Webcam capture station (getUserMedia, face-api.js detection loop)
 - Face detection, cropping, and bounding box extraction
@@ -526,6 +619,7 @@ src/lib/imageFilter.ts
 ### SHARED (agree on these in the first 30 minutes)
 
 **Shared files (both devs may read, coordinate changes):**
+
 ```
 src/types/index.ts               # Shared TypeScript interfaces
 package.json                     # Dependencies
@@ -535,14 +629,16 @@ public/models/                   # face-api.js model weights
 ```
 
 **The contract between Dev A and Dev B:**
+
 ```typescript
 // types/index.ts — AGREE ON THIS BEFORE SPLITTING UP
 
 interface StoredFace {
   id: string;
-  image: string;         // Base64 PNG, cropped & filtered face
+  image: string; // Base64 PNG, cropped & filtered face
   timestamp: number;
-  name?: string;         // Optional, for famous faces
+  name?: string; // Optional, for famous faces
+  descriptor?: number[]; // 128-dim face descriptor (for /identify matching)
 }
 
 interface FaceSlot {
@@ -559,15 +655,19 @@ interface FaceSlot {
 }
 
 // API contract:
-// POST /api/faces  — body: { image: string, name?: string }
-//                  — response: { success: true }
-// GET  /api/faces  — query: ?since=<timestamp> (optional)
-//                  — response: { faces: StoredFace[] }
+// POST /api/faces     — body: { image: string, name?: string, descriptor?: number[] }
+//                     — response: { success: true }
+// GET  /api/faces     — query: ?since=<timestamp> (optional)
+//                     — response: { faces: StoredFace[] }
+// POST /api/identify  — body: { descriptor: number[128] }
+//                     — response: { match: { id } | null, guestCount: number }
+//                     (server-side matching, phone sends only its own descriptor)
 ```
 
 ### Git Workflow
 
 Both devs work on **separate branches**, merging at integration points:
+
 1. **Hour 1:** Both devs work together on `main` for initial project setup (create-next-app, install deps, create shared types, folder structure)
 2. **Hours 2-4:** Dev A on `feature/display`, Dev B on `feature/capture`
 3. **Hour 5:** Merge both branches into `main`, test integration
@@ -579,16 +679,16 @@ Both devs work on **separate branches**, merging at integration points:
 
 ## Implementation Priority (8-Hour Sprint — Combined View)
 
-| Hour | Dev A (Display) | Dev B (Capture) | Milestone |
-|------|----------------|-----------------|-----------|
-| 1 | Project setup together, Three.js scene with placeholder grid | Project setup together, `/api/faces` route + store | Skeleton running |
-| 2 | Ken Burns camera + face split into two meshes | Webcam capture + face-api.js detection loop | Both sides functional independently |
-| 3 | Web Audio analyzer + Canadian mouth animation | Face cropping + debug preview page | Faces singing on display! |
-| 4 | Load real famous faces, tune camera path | Image filter pipeline (bg removal → grayscale → posterize) | Both sides polished independently |
-| 5 | **INTEGRATION:** Wire polling from `/api/faces` | **INTEGRATION:** POST faces to API, test with display | Full pipeline end-to-end! |
-| 6 | Polish: enthusiasm variation, idle animation, cinematography | Tune filter, confidence, cooldown based on display | Smooth experience |
-| 7 | (STRETCH) Mouth sprite Mode B | (STRETCH) Share page + QR code | Extra features |
-| 8 | Demo prep | Demo prep | Presentable demo |
+| Hour | Dev A (Display)                                              | Dev B (Capture)                                            | Milestone                           |
+| ---- | ------------------------------------------------------------ | ---------------------------------------------------------- | ----------------------------------- |
+| 1    | Project setup together, Three.js scene with placeholder grid | Project setup together, `/api/faces` route + store         | Skeleton running                    |
+| 2    | Ken Burns camera + face split into two meshes                | Webcam capture + face-api.js detection loop                | Both sides functional independently |
+| 3    | Web Audio analyzer + Canadian mouth animation                | Face cropping + debug preview page                         | Faces singing on display!           |
+| 4    | Load real famous faces, tune camera path                     | Image filter pipeline (bg removal → grayscale → posterize) | Both sides polished independently   |
+| 5    | **INTEGRATION:** Wire polling from `/api/faces`              | **INTEGRATION:** POST faces to API, test with display      | Full pipeline end-to-end!           |
+| 6    | Polish: enthusiasm variation, idle animation, cinematography | Tune filter, confidence, cooldown based on display         | Smooth experience                   |
+| 7    | (STRETCH) Mouth sprite Mode B                                | (STRETCH) Share page + QR code                             | Extra features                      |
+| 8    | Demo prep                                                    | Demo prep                                                  | Presentable demo                    |
 
 ---
 
@@ -618,6 +718,7 @@ Both devs work on **separate branches**, merging at integration points:
 ## Face-api.js Model Files
 
 Download these model files and place them in `public/models/`:
+
 - `tiny_face_detector_model-shard1` (+ manifest)
 - `face_landmark_68_model-shard1` (+ manifest)
 
