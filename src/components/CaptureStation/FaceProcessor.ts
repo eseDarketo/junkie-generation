@@ -7,7 +7,7 @@ export async function processCapture(
   videoElement: HTMLVideoElement,
   box: faceapi.Box,
   landmarks: faceapi.FaceLandmarks68,
-): Promise<string> {
+): Promise<{ raw: string; filtered: string }> {
   const cropCanvas = document.createElement('canvas');
   cropCanvas.width = 512;
   cropCanvas.height = 512;
@@ -39,11 +39,12 @@ export async function processCapture(
   const midX = (lCenter.x + rCenter.x) / 2;
   const midY = (lCenter.y + rCenter.y) / 2;
 
-  // 3. Transformation
+  // 3. Transformation & Masking
   ctx.save();
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
+  // --- TRANSFORMATION ---
   // Move origin to canvas target (center horizontal, 35% vertical)
   ctx.translate(256, 180);
   // Neutralize head roll
@@ -53,12 +54,41 @@ export async function processCapture(
   // Center source eyes on origin
   ctx.translate(-midX, -midY);
 
+  // --- HEAD CLIPPING PATH (In Video Pixel Space) ---
+  const jaw = landmarks.getJawOutline();
+  const lEyebrow = landmarks.getLeftEyeBrow();
+  const rEyebrow = landmarks.getRightEyeBrow();
+
+  ctx.beginPath();
+  // Follow jawline
+  ctx.moveTo(jaw[0].x, jaw[0].y);
+  for (let i = 1; i < jaw.length; i++) ctx.lineTo(jaw[i].x, jaw[i].y);
+  
+  // High head/hair area estimation
+  // We offset upwards relative to eye distance to capture forehead and hair
+  const headHeightOffset = eyeDistance * 1.8; 
+  
+  // Right side of forehead
+  ctx.lineTo(jaw[16].x, jaw[16].y - headHeightOffset * 0.5);
+  // Top curve across head
+  ctx.quadraticCurveTo(
+    midX, midY - headHeightOffset * 2.2,
+    jaw[0].x, jaw[0].y - headHeightOffset * 0.5
+  );
+  ctx.lineTo(jaw[0].x, jaw[0].y);
+  ctx.closePath();
+
+  // Apply clip before drawing
+  ctx.clip();
+
   // Draw full frame (the transform handles the crop)
   ctx.drawImage(videoElement, 0, 0);
   ctx.restore();
 
-  // Apply visual style filter
+  // Apply visual style filter (respects transparency now)
+  const rawData = cropCanvas.toDataURL('image/png');
   applyStyleFilter(cropCanvas);
+  const filteredData = cropCanvas.toDataURL('image/png');
 
-  return cropCanvas.toDataURL('image/png');
+  return { raw: rawData, filtered: filteredData };
 }

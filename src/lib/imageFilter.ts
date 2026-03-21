@@ -11,6 +11,9 @@ export function applyStyleFilter(canvas: HTMLCanvasElement): HTMLCanvasElement {
       g = data[i + 1],
       b = data[i + 2];
 
+    // Skip transparent pixels (preserves clipping mask)
+    if (data[i + 3] === 0) continue;
+
     // Softer background removal (avoid aliasing)
     const brightness = (r + g + b) / 3;
     if (brightness > 240) {
@@ -34,7 +37,7 @@ export function applyStyleFilter(canvas: HTMLCanvasElement): HTMLCanvasElement {
     data[i] = val * 0.9; // R
     data[i + 1] = val; // G
     data[i + 2] = val * 1.05; // B
-    data[i + 3] = 255;
+    // data[i + 3] remains 255 if we reached here
   }
 
   ctx.putImageData(imageData, 0, 0);

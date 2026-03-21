@@ -50,6 +50,7 @@ export function CaptureStation() {
     status === 'active',
   );
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [rawImage, setRawImage] = useState<string | null>(null);
   const [localArchive, setLocalArchive] = useState<string[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
   const knownDescriptors = useRef<Float32Array[]>([]);
@@ -75,41 +76,42 @@ export function CaptureStation() {
     setIsCapturing(true);
     try {
       const capturePromises = newFaces.map(async (det) => {
-        const base64 = await processCapture(
+        const result = await processCapture(
           videoRef.current!,
           det.box,
           det.landmarks,
         );
 
-        // 1. Save to Local Storage
+        // 1. Save to Local Storage (Save the filtered version)
         const existingString = localStorage.getItem('captured_faces');
         const existing = existingString ? JSON.parse(existingString) : [];
-        const updated = [base64, ...existing].slice(0, 10);
+        const updated = [result.filtered, ...existing].slice(0, 10);
         localStorage.setItem('captured_faces', JSON.stringify(updated));
 
-        // 2. POST to /api/faces (include descriptor for /identify matching)
+        // 2. POST to /api/faces (filtered version for Dev A)
         await fetch('/api/faces', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            image: base64,
+            image: result.filtered,
             name: 'Guest',
             descriptor: det.descriptor ? Array.from(det.descriptor) : undefined,
           }),
         });
 
-        // 3. Remember this face so we don't capture it again
+        // 3. Remember this face
         if (det.descriptor) {
           knownDescriptors.current.push(det.descriptor);
         }
 
-        return { base64, updated };
+        return { raw: result.raw, filtered: result.filtered, updated };
       });
 
       const results = await Promise.all(capturePromises);
 
       if (results.length > 0) {
-        setCapturedImage(results[0].base64);
+        setCapturedImage(results[0].filtered);
+        setRawImage(results[0].raw);
         setLocalArchive(results[0].updated);
 
         toast.success('MULTI_DATA_UPLINK', {
@@ -353,9 +355,10 @@ export function CaptureStation() {
                 <div
                   className={`h-32 ${colors.surfaceLowest} rounded border ${colors.outlineVariant}/20 overflow-hidden relative`}
                 >
-                  {stream ? (
+                  {rawImage ? (
+                    <img src={rawImage} className="w-full h-full object-cover" alt="Raw Source" />
+                  ) : stream ? (
                     <div className="w-full h-full bg-slate-800 animate-pulse">
-                      {/* Placeholder for raw preview of face extraction */}
                       <div className="absolute bottom-2 left-2 flex gap-1">
                         <div className="w-1 h-3 bg-[#8ff5ff]/40"></div>
                         <div className="w-1 h-5 bg-[#8ff5ff]/40"></div>
