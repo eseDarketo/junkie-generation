@@ -50,10 +50,12 @@ export function useFaceDetection(videoRef: RefObject<HTMLVideoElement | null>, i
       if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
       const videoEl = videoRef.current;
+      if (videoEl.videoWidth === 0 || videoEl.videoHeight === 0) return;
       
       // We use tinyFaceDetector per spec
+      // Tuning: lower threshold and larger input size for better detection
       const detectionWithLandmarks = await faceapi
-        .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.8 }))
+        .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 }))
         .withFaceLandmarks();
 
       if (detectionWithLandmarks) {
@@ -65,6 +67,8 @@ export function useFaceDetection(videoRef: RefObject<HTMLVideoElement | null>, i
         });
         setSamples((prev) => prev + 1);
       } else {
+        // Only set null if we don't have a stable detection or want the HUD to clear after a while
+        // Clear on next interval to avoid flickering
         setCurrentDetection(null);
       }
     }, 500); // 500ms loop as per spec

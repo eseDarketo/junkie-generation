@@ -3,18 +3,24 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { addFace, getFaces } from '@/lib/faceStore';
 
-// TODO (Dev B): Import from lib/faceStore and implement GET/POST handlers
-// See SPEC.md § "Local API Routes" for the full contract.
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(req: NextRequest) {
-  // TODO: return all faces, or faces since ?since=<timestamp>
-  return NextResponse.json({ faces: [] });
+  const { searchParams } = new URL(req.url);
+  const since = searchParams.get('since');
+  const timestamp = since ? parseInt(since) : 0;
+  
+  return NextResponse.json({ faces: getFaces(timestamp) });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function POST(req: NextRequest) {
-  // TODO: parse body, add face to store, return success
-  return NextResponse.json({ success: true });
+  try {
+    const { image, name } = await req.json();
+    if (!image) throw new Error('No image provided');
+    
+    addFace(image, name || 'Guest');
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return NextResponse.json({ success: false, error: 'Bad Request' }, { status: 400 });
+  }
 }

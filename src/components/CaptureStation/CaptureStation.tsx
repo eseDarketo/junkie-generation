@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useWebcam } from './useWebcam';
 import { useFaceDetection } from './useFaceDetection';
-import { processCapture } from '../FaceProcessor';
+import { processCapture } from './FaceProcessor';
 import { toast } from 'sonner';
 
 // Custom colors mapped to arbitrary tailwind values to avoid dirtying global configs
@@ -33,14 +33,48 @@ export function CaptureStation() {
   const { modelsLoaded, currentDetection, samples } = useFaceDetection(videoRef, status === 'active');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
-  // Auto capture cooldown logic
+  const [lastCaptureTime, setLastCaptureTime] = useState(0);
+
+  // Auto capture cooldown logic & saving
   useEffect(() => {
-    if (currentDetection && currentDetection.confidence > 0.8 && videoRef.current) {
+    const now = Date.now();
+    const canCapture = now - lastCaptureTime > 3000; // 3 second cooldown
+
+    if (canCapture && currentDetection && currentDetection.confidence > 0.5 && videoRef.current) {
       processCapture(videoRef.current, currentDetection.box)
-        .then((base64) => setCapturedImage(base64))
-        .catch((err) => console.error('Error processing capture:', err));
+        .then(async (base64: string) => {
+          setCapturedImage(base64);
+          setLastCaptureTime(Date.now());
+
+          // 1. Save to Local Storage (per user request)
+          try {
+            const existingString = localStorage.getItem('captured_faces');
+            const existing = existingString ? JSON.parse(existingString) : [];
+            localStorage.setItem('captured_faces', JSON.stringify([base64, ...existing].slice(0, 10)));
+          } catch (e) { 
+            console.error('LocalStorage error', e); 
+          }
+
+          // 2. POST to /api/faces
+          try {
+            const res = await fetch('/api/faces', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: base64, name: 'Guest' })
+            });
+            if (res.ok) {
+              toast.success('DATA_UPLINK_SUCCESS', {
+                description: 'Face biometric data uploaded to central server.',
+                duration: 2000,
+              });
+            }
+          } catch (err: unknown) {
+            console.error('API POST failed:', err);
+          }
+        })
+        .catch((err: Error) => console.error('Error processing capture:', err));
     }
-  }, [currentDetection]);
+  }, [currentDetection, lastCaptureTime]);
 
   useEffect(() => {
     if (isInitializing) setStatus('starting');
