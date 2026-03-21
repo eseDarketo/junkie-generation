@@ -171,7 +171,7 @@ export default function SceneRenderer({
 }: SceneRendererProps) {
   const [slots, setSlots] = useState<FaceSlotType[]>([]);
   const [overview, setOverview] = useState(false);
-  const lastPollRef = useRef(Date.now());
+  const lastPollRef = useRef(0);
 
   // Initialize slots and preload all face images before rendering
   useEffect(() => {
@@ -220,7 +220,9 @@ export default function SceneRenderer({
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/faces?since=${lastPollRef.current}`);
+        const res = await fetch(`/api/faces?since=${lastPollRef.current}`, {
+          cache: 'no-store',
+        });
         const { faces } = (await res.json()) as { faces: StoredFace[] };
 
         if (faces && faces.length > 0) {
