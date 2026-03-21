@@ -8,6 +8,7 @@ import { useRef, useState, useEffect } from "react";
 import * as THREE from "three";
 import type { FaceSlot as FaceSlotType, CameraKeyframe, StoredFace } from "@/types";
 import { generateSlots, findEmptySlot, SCENE_WIDTH, SCENE_HEIGHT, VIP_FACES, DUMMY_FACE } from "@/lib/faceSlots";
+import { preloadFaces } from "@/lib/textureCache";
 import FaceSlotComponent from "./FaceSlot";
 import { useLipSyncParams } from "./LipSyncEngine";
 
@@ -31,15 +32,22 @@ function easeInOutSine(t: number): number {
 }
 
 // ---- Camera Controller (inside Canvas) ----
-function KenBurnsCamera() {
-  const { camera } = useThree();
+function KenBurnsCamera({ overview }: { overview: boolean }) {
+  const { camera, size } = useThree();
   const timeRef = useRef(0);
   const keyframeIndexRef = useRef(0);
   const keyframeTimeRef = useRef(0);
+  const transitionRef = useRef(0); // 0 = ken burns, 1 = overview
 
   useFrame((_, delta) => {
     if (!(camera instanceof THREE.OrthographicCamera)) return;
 
+    // Smooth transition between modes
+    const target = overview ? 1 : 0;
+    transitionRef.current += (target - transitionRef.current) * 0.03;
+    const blend = transitionRef.current;
+
+    // Ken Burns animation (keeps running so it resumes smoothly)
     timeRef.current += delta;
     const elapsed = timeRef.current - keyframeTimeRef.current;
     const currentIdx = keyframeIndexRef.current;
@@ -50,21 +58,33 @@ function KenBurnsCamera() {
     let t = Math.min(elapsed / next.duration, 1);
     t = easeInOutSine(t);
 
-    // Interpolate position and zoom
-    const x = THREE.MathUtils.lerp(
+    const kbX = THREE.MathUtils.lerp(
       current.x * SCENE_WIDTH,
       next.x * SCENE_WIDTH,
       t
     );
-    const y = THREE.MathUtils.lerp(
+    const kbY = THREE.MathUtils.lerp(
       -current.y * SCENE_HEIGHT,
       -next.y * SCENE_HEIGHT,
       t
     );
-    const zoom = THREE.MathUtils.lerp(current.zoom, next.zoom, t);
+    const kbZoom = THREE.MathUtils.lerp(current.zoom, next.zoom, t);
+
+    // Overview: center on scene, zoom to fit
+    const ovX = SCENE_WIDTH / 2;
+    const ovY = -SCENE_HEIGHT / 2;
+    // Calculate zoom to fit entire scene in viewport
+    const zoomX = size.width / SCENE_WIDTH;
+    const zoomY = size.height / SCENE_HEIGHT;
+    const ovZoom = Math.min(zoomX, zoomY) * 0.85; // 85% to add padding
+
+    // Blend between modes
+    const x = THREE.MathUtils.lerp(kbX, ovX, blend);
+    const y = THREE.MathUtils.lerp(kbY, ovY, blend);
+    const zoom = THREE.MathUtils.lerp(kbZoom, ovZoom, blend);
 
     camera.position.set(x, y, 100);
-    camera.lookAt(x, y, 0); // always look straight down at the scene
+    camera.lookAt(x, y, 0);
     camera.zoom = zoom;
     camera.updateProjectionMatrix();
 
@@ -129,36 +149,50 @@ export default function SceneRenderer({
   elapsedTime,
 }: SceneRendererProps) {
   const [slots, setSlots] = useState<FaceSlotType[]>([]);
+  const [overview, setOverview] = useState(false);
   const lastPollRef = useRef(Date.now());
 
-  // Initialize slots with placeholders on mount
+  // Initialize slots and preload all face images before rendering
   useEffect(() => {
-    const initialSlots = generateSlots();
+    async function init() {
+      // Preload ALL images first, wait for completion
+      const allUrls = [DUMMY_FACE, ...VIP_FACES.map((v) => v.file)];
+      await preloadFaces(allUrls);
 
-    // Populate slots: VIPs first, then dummy faces for the rest
-    const slotsWithFaces = initialSlots.map((slot, i) => {
-      if (i < VIP_FACES.length) {
-        // VIP famous faces
+      const initialSlots = generateSlots();
+
+      // Assign VIPs to specific slot indices spread evenly
+      const vipSlotIndices: number[] = [];
+      const step = Math.floor(initialSlots.length / VIP_FACES.length);
+      for (let v = 0; v < VIP_FACES.length; v++) {
+        vipSlotIndices.push(v * step + Math.floor(step / 2));
+      }
+
+      const slotsWithFaces = initialSlots.map((slot, i) => {
+        const vipIdx = vipSlotIndices.indexOf(i);
+        if (vipIdx !== -1) {
+          return {
+            ...slot,
+            occupied: true,
+            isFamous: true,
+            faceImage: VIP_FACES[vipIdx].file,
+            label: VIP_FACES[vipIdx].label,
+            animationMode: "canadian" as const,
+          };
+        }
         return {
           ...slot,
           occupied: true,
-          isFamous: true,
-          faceImage: VIP_FACES[i].file,
-          label: VIP_FACES[i].label,
+          isFamous: false,
+          faceImage: DUMMY_FACE,
           animationMode: "canadian" as const,
         };
-      }
-      // Remaining slots: fill with dummy face (will be replaced by guests)
-      return {
-        ...slot,
-        occupied: true,
-        isFamous: false,
-        faceImage: DUMMY_FACE,
-        animationMode: "canadian" as const,
-      };
-    });
+      });
 
-    setSlots(slotsWithFaces);
+      setSlots(slotsWithFaces);
+    }
+
+    init();
   }, []);
 
   // Poll /api/faces for new guest faces
@@ -202,7 +236,15 @@ export default function SceneRenderer({
   }, []);
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full relative">
+      {/* Overview toggle button */}
+      <button
+        onClick={() => setOverview((v) => !v)}
+        className="absolute top-4 right-4 z-10 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-lg border border-white/20 transition-all"
+      >
+        {overview ? "Ken Burns" : "Full Scene"}
+      </button>
+
       <Canvas
         orthographic
         camera={{
@@ -214,7 +256,7 @@ export default function SceneRenderer({
         gl={{ antialias: true, alpha: false }}
         style={{ background: "#0a0a0a" }}
       >
-        <KenBurnsCamera />
+        <KenBurnsCamera overview={overview} />
         <SceneContent
           slots={slots}
           openness={openness}

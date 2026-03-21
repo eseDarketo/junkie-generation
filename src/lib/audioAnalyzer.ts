@@ -6,6 +6,11 @@
 
 import type { MouthCue, VocalMap } from "@/types";
 
+// Offset in seconds to align the vocal map with the audio track.
+// Positive = vocal map starts later than the audio (shift cues forward).
+// Adjust this value to fine-tune sync.
+export const VOCAL_MAP_OFFSET = 0;
+
 let cachedVocalMap: VocalMap | null = null;
 
 /**

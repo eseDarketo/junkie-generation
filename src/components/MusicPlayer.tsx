@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { VocalMap } from "@/types";
-import { loadVocalMap, getMouthCueAtTime, mouthShapeToOpenness } from "@/lib/audioAnalyzer";
+import { loadVocalMap, getMouthCueAtTime, mouthShapeToOpenness, VOCAL_MAP_OFFSET } from "@/lib/audioAnalyzer";
 
 interface MusicPlayerProps {
   trackUrl: string;
@@ -46,7 +46,7 @@ export default function MusicPlayer({
       setCurrentTime(time);
       onTimeChange?.(time);
 
-      const cue = getMouthCueAtTime(vocalMap.mouthCues, time);
+      const cue = getMouthCueAtTime(vocalMap.mouthCues, time - VOCAL_MAP_OFFSET);
       const openness = cue ? mouthShapeToOpenness(cue.value) : 0;
       onOpennessChange(openness);
     }
