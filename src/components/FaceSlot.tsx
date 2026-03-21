@@ -48,7 +48,8 @@ export default function FaceSlotComponent({
     });
   }, [slot.faceImage]);
 
-  const MAX_LIFT = faceHeight * 0.35;
+  // Max hinge rotation in radians (~30 degrees fully open)
+  const MAX_HINGE_ANGLE = 0.52;
 
   useFrame(() => {
     if (!topRef.current) return;
@@ -56,9 +57,10 @@ export default function FaceSlotComponent({
     const delayedTime = Math.max(0, elapsedTime - animParams.delayMs / 1000);
     const rotation = opennessToRotation(openness, animParams, delayedTime);
     const normalizedOpen = rotation / 0.44;
-    const lift = normalizedOpen * MAX_LIFT;
+    const angle = normalizedOpen * MAX_HINGE_ANGLE;
 
-    topRef.current.position.y = -topHeight / 2 + lift;
+    // Rotate around Z axis (hinge at bottom edge — top flips up like South Park mouth)
+    topRef.current.rotation.z = -angle;
   });
 
   if (!slot.occupied) return null;
@@ -71,6 +73,18 @@ export default function FaceSlotComponent({
         <meshBasicMaterial color="#0a0a0a" />
       </mesh>
 
+      {/* Top half — rotates on hinge at bottom-right corner */}
+      <group ref={topRef} position={[faceWidth / 2, -topHeight / 2, 0.01]}>
+        {/* Mesh offset up and left so group origin is at bottom-right corner */}
+        <mesh key={`top-${loadKey}`} position={[-faceWidth / 2, topHeight / 2, 0]}>
+          <planeGeometry args={[faceWidth, topHeight]} />
+          <meshBasicMaterial
+            color={topTexture ? "#ffffff" : "#1a1a1a"}
+            map={topTexture}
+          />
+        </mesh>
+      </group>
+
       {/* Bottom half — static */}
       <mesh key={`bottom-${loadKey}`} position={[0, -topHeight / 2 - bottomHeight / 2, 0]}>
         <planeGeometry args={[faceWidth, bottomHeight]} />
@@ -79,17 +93,6 @@ export default function FaceSlotComponent({
           map={bottomTexture}
         />
       </mesh>
-
-      {/* Top half — lifts up for mouth animation */}
-      <group ref={topRef} position={[0, -topHeight / 2, 0.01]}>
-        <mesh key={`top-${loadKey}`} position={[0, topHeight / 2, 0]}>
-          <planeGeometry args={[faceWidth, topHeight]} />
-          <meshBasicMaterial
-            color={topTexture ? "#ffffff" : "#1a1a1a"}
-            map={topTexture}
-          />
-        </mesh>
-      </group>
     </group>
   );
 }
