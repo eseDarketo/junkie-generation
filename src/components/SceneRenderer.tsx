@@ -112,16 +112,10 @@ function SceneContent({
 
   return (
     <>
-      {/* Dark background plane */}
+      {/* White background plane */}
       <mesh position={[SCENE_WIDTH / 2, -SCENE_HEIGHT / 2, -1]}>
         <planeGeometry args={[SCENE_WIDTH * 1.5, SCENE_HEIGHT * 1.5]} />
-        <meshBasicMaterial color="#0a0a0a" />
-      </mesh>
-
-      {/* Subtle grid lines for depth (optional visual) */}
-      <mesh position={[SCENE_WIDTH / 2, -SCENE_HEIGHT / 2, -0.5]}>
-        <planeGeometry args={[SCENE_WIDTH * 1.2, SCENE_HEIGHT * 1.2]} />
-        <meshBasicMaterial color="#111111" />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
 
       {/* Render all face slots */}
@@ -236,7 +230,7 @@ export default function SceneRenderer({
   }, []);
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative" style={{ filter: "grayscale(100%)" }}>
       {/* Overview toggle button */}
       <button
         onClick={() => setOverview((v) => !v)}
@@ -254,7 +248,7 @@ export default function SceneRenderer({
           far: 1000,
         }}
         gl={{ antialias: true, alpha: false }}
-        style={{ background: "#0a0a0a" }}
+        style={{ background: "#ffffff" }}
       >
         <KenBurnsCamera overview={overview} />
         <SceneContent

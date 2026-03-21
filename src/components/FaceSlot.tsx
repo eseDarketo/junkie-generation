@@ -67,10 +67,10 @@ export default function FaceSlotComponent({
 
   return (
     <group position={[slot.x, -slot.y, 0]}>
-      {/* Dark backing behind face (covers mouth gap) */}
+      {/* White backing behind face (covers mouth gap) */}
       <mesh position={[0, 0, -0.02]}>
         <planeGeometry args={[faceWidth, faceHeight * 1.5]} />
-        <meshBasicMaterial color="#0a0a0a" />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
 
       {/* Top half — rotates on hinge at bottom-right corner */}
