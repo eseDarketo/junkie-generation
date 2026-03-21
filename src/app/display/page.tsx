@@ -3,7 +3,7 @@
 // ============================================================
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import MusicPlayer from "@/components/MusicPlayer";
 
@@ -20,8 +20,6 @@ const SceneRenderer = dynamic(() => import("@/components/SceneRenderer"), {
 export default function DisplayPage() {
   const [openness, setOpenness] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const startTimeRef = useRef(Date.now());
-
   const handleOpennessChange = useCallback((value: number) => {
     setOpenness(value);
   }, []);

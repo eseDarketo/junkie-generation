@@ -4,10 +4,10 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect } from "react";
 import * as THREE from "three";
 import type { FaceSlot as FaceSlotType, CameraKeyframe, StoredFace } from "@/types";
-import { generateSlots, findEmptySlot, SCENE_WIDTH, SCENE_HEIGHT } from "@/lib/faceSlots";
+import { generateSlots, findEmptySlot, SCENE_WIDTH, SCENE_HEIGHT, VIP_FACES, DUMMY_FACE } from "@/lib/faceSlots";
 import FaceSlotComponent from "./FaceSlot";
 import { useLipSyncParams } from "./LipSyncEngine";
 
@@ -63,8 +63,8 @@ function KenBurnsCamera() {
     );
     const zoom = THREE.MathUtils.lerp(current.zoom, next.zoom, t);
 
-    camera.position.x = x;
-    camera.position.y = y;
+    camera.position.set(x, y, 100);
+    camera.lookAt(x, y, 0); // always look straight down at the scene
     camera.zoom = zoom;
     camera.updateProjectionMatrix();
 
@@ -135,23 +135,30 @@ export default function SceneRenderer({
   useEffect(() => {
     const initialSlots = generateSlots();
 
-    // Pre-populate some slots as occupied with placeholder colors
-    // These will be replaced by real famous face images later
-    const slotsWithPlaceholders = initialSlots.map((slot, i) => {
-      // Occupy first 20 slots as "famous faces" placeholders
-      if (i < 20) {
+    // Populate slots: VIPs first, then dummy faces for the rest
+    const slotsWithFaces = initialSlots.map((slot, i) => {
+      if (i < VIP_FACES.length) {
+        // VIP famous faces
         return {
           ...slot,
           occupied: true,
           isFamous: true,
-          label: `Celebrity ${i + 1}`,
+          faceImage: VIP_FACES[i].file,
+          label: VIP_FACES[i].label,
           animationMode: "canadian" as const,
         };
       }
-      return slot;
+      // Remaining slots: fill with dummy face (will be replaced by guests)
+      return {
+        ...slot,
+        occupied: true,
+        isFamous: false,
+        faceImage: DUMMY_FACE,
+        animationMode: "canadian" as const,
+      };
     });
 
-    setSlots(slotsWithPlaceholders);
+    setSlots(slotsWithFaces);
   }, []);
 
   // Poll /api/faces for new guest faces
@@ -165,9 +172,12 @@ export default function SceneRenderer({
           setSlots((prev) => {
             const updated = [...prev];
             for (const face of faces) {
-              const empty = findEmptySlot(updated);
-              if (empty) {
-                const idx = updated.findIndex((s) => s.id === empty.id);
+              // Find a dummy slot (non-VIP, still showing generic face)
+              const dummy = updated.find(
+                (s) => !s.isFamous && s.faceImage === DUMMY_FACE
+              ) || findEmptySlot(updated);
+              if (dummy) {
+                const idx = updated.findIndex((s) => s.id === dummy.id);
                 if (idx !== -1) {
                   updated[idx] = {
                     ...updated[idx],

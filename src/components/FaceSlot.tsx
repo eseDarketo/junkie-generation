@@ -9,7 +9,7 @@
 
 "use client";
 
-import { useRef, useMemo, useEffect, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { FaceSlot as FaceSlotType } from "@/types";
@@ -94,19 +94,27 @@ export default function FaceSlotComponent({
   // Placeholder material (used when no face image loaded)
   const placeholderColor = ROW_COLORS[slot.row % ROW_COLORS.length];
 
-  // Animate top half rotation
+  // Animate top half — lift upward to create mouth gap
+  const MAX_LIFT = faceHeight * 0.35; // max mouth opening distance
+
   useFrame(() => {
     if (!topRef.current) return;
 
     const delayedTime = Math.max(0, elapsedTime - animParams.delayMs / 1000);
     const rotation = opennessToRotation(openness, animParams, delayedTime);
-    topRef.current.rotation.z = rotation;
+
+    // Convert rotation angle to a vertical lift distance
+    // rotation is 0 to ~0.44 rad (25°), normalize to 0-1 then multiply by max lift
+    const normalizedOpen = rotation / 0.44;
+    const lift = normalizedOpen * MAX_LIFT;
+
+    topRef.current.position.y = -topHeight / 2 + lift;
   });
 
   if (!slot.occupied) return null;
 
   return (
-    <group position={[slot.x, -slot.y, slot.row * 0.1]}>
+    <group position={[slot.x, -slot.y, 0]}>
       {/* Bottom half — static */}
       <mesh position={[0, -topHeight / 2 - bottomHeight / 2, 0]}>
         <planeGeometry args={[faceWidth, bottomHeight]} />

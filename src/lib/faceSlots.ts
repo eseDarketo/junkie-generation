@@ -10,6 +10,23 @@ import type { FaceSlot } from "@/types";
 const SCENE_WIDTH = 4000;
 const SCENE_HEIGHT = 2000;
 
+// Pre-loaded famous faces (VIPs)
+export const VIP_FACES: Array<{ file: string; label: string }> = [
+  { file: "/faces/vip-alex-turner.png", label: "Alex Turner" },
+  { file: "/faces/vip-bad-bunny.jpg", label: "Bad Bunny" },
+  { file: "/faces/vip-david-bowie.jpg", label: "David Bowie" },
+  { file: "/faces/vip-intrinseco.jpg", label: "Intrinseco" },
+  { file: "/faces/vip-jim.jpg", label: "Jim" },
+  { file: "/faces/vip-lio-messi.jpg", label: "Lio Messi" },
+  { file: "/faces/vip-nina-simone.jpg", label: "Nina Simone" },
+  { file: "/faces/vip-rick-rubin.jpg", label: "Rick Rubin" },
+  { file: "/faces/vip-til.jpg", label: "Til" },
+  { file: "/faces/vip-ye.jpeg", label: "Ye" },
+];
+
+// Generic placeholder face for empty slots
+export const DUMMY_FACE = "/faces/dummy-face.jpeg";
+
 // Row configurations: [y position (0-1), scale, number of faces]
 const ROW_CONFIG: Array<{ y: number; scale: number; count: number }> = [
   { y: 0.12, scale: 0.55, count: 11 }, // Row 0: back row (smallest)

@@ -4,7 +4,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { MouthCue, VocalMap } from "@/types";
+import type { VocalMap } from "@/types";
 import { loadVocalMap, getMouthCueAtTime, mouthShapeToOpenness } from "@/lib/audioAnalyzer";
 
 interface MusicPlayerProps {
