@@ -5,35 +5,57 @@ import { applyStyleFilter } from '../../lib/imageFilter';
 
 export async function processCapture(
   videoElement: HTMLVideoElement,
-  box: faceapi.Box
+  box: faceapi.Box,
+  landmarks: faceapi.FaceLandmarks68
 ): Promise<string> {
-  const { x, y, width, height } = box;
-
-  // Add 20% padding
-  const padding = 0.2;
-  const padX = width * padding;
-  const padY = height * padding;
-
   const cropCanvas = document.createElement('canvas');
-  // Add padding around original bounding box
-  const cropSize = Math.max(width + padX * 2, height + padY * 2);
-  
   cropCanvas.width = 512;
   cropCanvas.height = 512;
-  
   const ctx = cropCanvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context not available');
 
-  // Quality settings
+  // 1. Get key landmarks for alignment
+  const leftEye = landmarks.getLeftEye();
+  const rightEye = landmarks.getRightEye();
+
+  const getCenter = (pts: faceapi.Point[]) => ({
+    x: pts.reduce((sum, p) => sum + p.x, 0) / pts.length,
+    y: pts.reduce((sum, p) => sum + p.y, 0) / pts.length
+  });
+
+  const lCenter = getCenter(leftEye);
+  const rCenter = getCenter(rightEye);
+
+  // 2. Alignment math
+  const dx = rCenter.x - lCenter.x;
+  const dy = rCenter.y - lCenter.y;
+  const angle = Math.atan2(dy, dx);
+  const eyeDistance = Math.sqrt(dx * dx + dy * dy);
+
+  // Target scale so eye distance is approx 140px in the 512x512 canvas
+  const scale = 140 / eyeDistance;
+
+  // Midpoint between eyes in source
+  const midX = (lCenter.x + rCenter.x) / 2;
+  const midY = (lCenter.y + rCenter.y) / 2;
+
+  // 3. Transformation
+  ctx.save();
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // Draw scaled crop to canvas
-  ctx.drawImage(
-    videoElement,
-    x - padX, y - padY, cropSize, cropSize, 
-    0, 0, 512, 512 
-  );
+  // Move origin to canvas target (center horizontal, 35% vertical)
+  ctx.translate(256, 180);
+  // Neutralize head roll
+  ctx.rotate(-angle);
+  // Rescale face
+  ctx.scale(scale, scale);
+  // Center source eyes on origin
+  ctx.translate(-midX, -midY);
+
+  // Draw full frame (the transform handles the crop)
+  ctx.drawImage(videoElement, 0, 0);
+  ctx.restore();
 
   // Apply visual style filter
   applyStyleFilter(cropCanvas);

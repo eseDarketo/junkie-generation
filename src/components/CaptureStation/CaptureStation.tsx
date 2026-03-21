@@ -55,7 +55,7 @@ export function CaptureStation() {
       try {
         // Capture ALL detected faces
         const capturePromises = detections.map(async (det) => {
-          const base64 = await processCapture(videoRef.current!, det.box);
+          const base64 = await processCapture(videoRef.current!, det.box, det.landmarks);
           
           // 1. Save to Local Storage
           const existingString = localStorage.getItem('captured_faces');
@@ -97,8 +97,16 @@ export function CaptureStation() {
     }
   };
 
-  // Sync effect removed as logic is now in handleCapture
-  useEffect(() => {}, [detections]);
+  // Multi-Face Auto-shutter logic (Re-enabled per request)
+  useEffect(() => {
+    if (status !== 'active' || detections.length === 0 || isCapturing) return;
+
+    const now = Date.now();
+    // 3s cooldown between auto-captures
+    if (now - lastCaptureTime > 3000) {
+      handleCapture();
+    }
+  }, [detections, status, isCapturing, lastCaptureTime]);
 
   useEffect(() => {
     if (isInitializing) setStatus('starting');
@@ -107,11 +115,11 @@ export function CaptureStation() {
     else setStatus('idle');
   }, [isInitializing, stream, error]);
 
-  const handleMainAction = () => {
-    if (!stream) {
-      startWebcam();
+  const toggleSystem = () => {
+    if (stream) {
+      stopWebcam();
     } else {
-      handleCapture();
+      startWebcam();
     }
   };
 
@@ -246,20 +254,12 @@ export function CaptureStation() {
                 </p>
               </div>
               <button 
-                onClick={handleMainAction}
-                disabled={isInitializing || isCapturing}
-                className={`grow sm:grow-0 bg-gradient-to-r ${!stream ? `from-[#8ff5ff] ${colors.primaryDim} text-[#005d63]` : `from-[#8ff5ff] to-[#00deec] text-[#005d63]`} font-black px-12 py-4 rounded-lg tracking-[0.15em] shadow-[0_0_20px_rgba(143,245,255,0.2)] hover:scale-105 transition-all outline-none`}
+                onClick={toggleSystem}
+                disabled={isInitializing}
+                className={`grow sm:grow-0 bg-gradient-to-r ${!stream ? `from-[#8ff5ff] ${colors.primaryDim} text-[#005d63]` : `from-red-900 to-red-800 text-red-100`} font-black px-12 py-4 rounded-lg tracking-[0.15em] shadow-[0_0_20px_rgba(143,245,255,0.2)] hover:scale-105 transition-all outline-none uppercase font-mono`}
               >
-                {isInitializing ? 'LOADING_LINK...' : !stream ? 'INITIALIZE_SYSTEM' : isCapturing ? 'CAPTURING...' : 'INITIALIZE_CAPTURE'}
+                {isInitializing ? 'LOADING_LINK...' : !stream ? 'SYSTEM_OFFLINE // INITIALIZE' : 'SYSTEM_ACTIVE // TERMINATE_LINK'}
               </button>
-              {stream && (
-                <button 
-                  onClick={stopWebcam}
-                  className="text-red-500/60 hover:text-red-500 text-[10px] font-bold tracking-widest uppercase transition-colors"
-                >
-                  Terminate Link
-                </button>
-              )}
             </div>
           </div>
 
