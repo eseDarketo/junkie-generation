@@ -26,6 +26,12 @@ export default function Home() {
           >
             Open Capture Station
           </Link>
+          <Link
+            href="/identify"
+            className="px-6 py-3 border border-white font-semibold rounded-lg hover:bg-white hover:text-black transition"
+          >
+            Find Yourself
+          </Link>
         </div>
 
         <div className="mt-12 text-sm text-gray-600 space-y-1">
@@ -34,6 +40,9 @@ export default function Home() {
           </p>
           <p>
             <code>/capture</code> — Webcam station (face detection + capture)
+          </p>
+          <p>
+            <code>/identify</code> — Find yourself via camera
           </p>
           <p>
             <code>/share/[id]</code> — Individual avatar share page

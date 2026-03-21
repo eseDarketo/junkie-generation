@@ -1,10 +1,32 @@
 // ============================================================
-// faceStore — In-memory face storage + API helpers — DEV B
+// FaceStore: In-memory store for guest faces — DEV B
 // ============================================================
-// Simple module-level storage. Resets on server restart (fine for hackathon).
-// See SPEC.md § "Local API Routes" for details.
+// This is used by /api/faces and /api/identify handlers.
 
 import type { StoredFace } from '@/types';
 
-// TODO (Dev B): Implement addFace, getAllFaces, getFacesSince
-export type { StoredFace };
+// In-memory array (clears on server restart)
+const faces: StoredFace[] = [];
+
+export function addFace(face: StoredFace) {
+  // Keep only last 50 to avoid memory bloat
+  faces.unshift(face);
+  if (faces.length > 50) faces.pop();
+}
+
+export function getAllFaces(): StoredFace[] {
+  return faces;
+}
+
+export function getFaces(since?: number): StoredFace[] {
+  if (!since) return faces;
+  return faces.filter((f) => f.timestamp > since);
+}
+
+export function getFacesSince(timestamp: number): StoredFace[] {
+  return faces.filter((f) => f.timestamp > timestamp);
+}
+
+export function getFaceById(id: string): StoredFace | undefined {
+  return faces.find((f) => f.id === id);
+}
