@@ -1,20 +1,33 @@
 // ============================================================
-// LipSyncEngine — Audio-reactive mouth animation controller — DEV A
+// LipSyncEngine — Manages per-face animation params — DEV A
 // ============================================================
-// Two modes:
-//   Mode A "Canadian" (MVP): Split face top/bottom, rotate top half
-//   Mode B "Sprite" (stretch): Overlay mouth shape sprites
-//
-// Each face gets:
-//   - Random delay offset (50-300ms)
-//   - Random enthusiasm factor (0.6-1.0)
-//   - Subtle idle animation when amplitude is low
-//
-// See SPEC.md § "LipSyncEngine.tsx" for full details.
+// Not a visual component. This is a hook that generates and
+// manages per-face animation parameters (enthusiasm, delay, idle phase).
+// The actual rendering happens in FaceSlot.
 
 "use client";
 
-export default function LipSyncEngine() {
-  // TODO (Dev A): Implement lip sync controller
-  return null;
+import { useRef, useMemo } from "react";
+import { FaceAnimParams, generateAnimParams } from "@/lib/mouthMapper";
+
+/**
+ * Hook that generates and caches animation parameters for each face slot.
+ * Returns a function to get params by slot ID.
+ */
+export function useLipSyncParams() {
+  const paramsMapRef = useRef<Map<string, FaceAnimParams>>(new Map());
+
+  const getParamsForSlot = useMemo(
+    () => (slotId: string): FaceAnimParams => {
+      let params = paramsMapRef.current.get(slotId);
+      if (!params) {
+        params = generateAnimParams();
+        paramsMapRef.current.set(slotId, params);
+      }
+      return params;
+    },
+    []
+  );
+
+  return getParamsForSlot;
 }

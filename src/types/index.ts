@@ -5,7 +5,7 @@
 
 export interface StoredFace {
   id: string;
-  image: string; // Base64 PNG, cropped & filtered face
+  image: string; // Base64 or URL of the face image (JPEG)
   timestamp: number;
   name?: string; // Optional, for famous faces
 }
@@ -28,6 +28,26 @@ export interface CameraKeyframe {
   y: number; // center Y on the canvas (0-1 normalized)
   zoom: number; // 1 = full scene, 3 = close-up on a few faces
   duration: number; // seconds to interpolate to this keyframe
+}
+
+// Rhubarb lip-sync mouth cue
+export interface MouthCue {
+  start: number;
+  end: number;
+  value: string; // A-H, X (Preston Blair phoneme set)
+}
+
+export interface VocalMap {
+  metadata: {
+    soundFile: string;
+    duration: number;
+    title: string;
+    artist: string;
+    bpm: number;
+    generatedBy: string;
+    note: string;
+  };
+  mouthCues: MouthCue[];
 }
 
 // API contract:
