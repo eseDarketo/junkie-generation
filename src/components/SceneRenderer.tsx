@@ -10,6 +10,7 @@ import type { FaceSlot as FaceSlotType, CameraKeyframe, StoredFace } from "@/typ
 import { generateSlots, findEmptySlot, SCENE_WIDTH, SCENE_HEIGHT, VIP_FACES, DUMMY_FACE } from "@/lib/faceSlots";
 import { preloadFaces } from "@/lib/textureCache";
 import FaceSlotComponent from "./FaceSlot";
+import Starburst from "./ConcentricCircles";
 import { useLipSyncParams } from "./LipSyncEngine";
 
 // ---- Ken Burns Camera Path ----
@@ -117,6 +118,9 @@ function SceneContent({
         <planeGeometry args={[SCENE_WIDTH * 1.5, SCENE_HEIGHT * 1.5]} />
         <meshBasicMaterial color="#ffffff" />
       </mesh>
+
+      {/* Art deco starburst — pulsing background */}
+      <Starburst openness={openness} />
 
       {/* Render all face slots */}
       {slots.map((slot) => (

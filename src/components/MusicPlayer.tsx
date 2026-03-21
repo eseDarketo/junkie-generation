@@ -12,6 +12,7 @@ interface MusicPlayerProps {
   vocalMapUrl: string;
   onOpennessChange: (openness: number) => void;
   onTimeChange?: (time: number) => void;
+  songSelector?: React.ReactNode;
 }
 
 export default function MusicPlayer({
@@ -19,6 +20,7 @@ export default function MusicPlayer({
   vocalMapUrl,
   onOpennessChange,
   onTimeChange,
+  songSelector,
 }: MusicPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const vocalMapRef = useRef<VocalMap | null>(null);
@@ -138,10 +140,12 @@ export default function MusicPlayer({
           {formatTime(duration)}
         </span>
 
-        {/* Track info */}
-        <div className="text-xs text-gray-500 flex-shrink-0 hidden sm:block">
-          {isLoaded ? "The Real Slim Shady" : "Loading..."}
-        </div>
+        {/* Song selector */}
+        {songSelector && (
+          <div className="flex-shrink-0 hidden sm:block">
+            {songSelector}
+          </div>
+        )}
       </div>
     </div>
   );
