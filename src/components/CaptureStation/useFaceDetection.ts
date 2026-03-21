@@ -67,13 +67,34 @@ export function useFaceDetection(videoRef: RefObject<HTMLVideoElement | null>, i
           .withFaceLandmarks();
 
         if (allDetections && allDetections.length > 0) {
-          const formatted = allDetections.map(d => ({
-            box: d.detection.box,
-            landmarks: d.landmarks,
-            confidence: d.detection.score
-          }));
+          const formatted = allDetections
+            .map(d => {
+              const { landmarks, detection } = d;
+              
+              // Calculate symmetry for frontal face estimation
+              const leftEye = landmarks.getLeftEye()[0]; // Left eye leftmost point
+              const rightEye = landmarks.getRightEye()[3]; // Right eye rightmost point
+              const noseTip = landmarks.getNose()[6]; // Nose tip
+
+              const distToLeft = Math.abs(noseTip.x - leftEye.x);
+              const distToRight = Math.abs(rightEye.x - noseTip.x);
+              
+              // If distance to left/right eye from nose tip is balanced, it's looking front
+              const symmetryRatio = Math.abs(distToLeft - distToRight) / Math.max(distToLeft, distToRight);
+              const isLookingFront = symmetryRatio < 0.25; // 25% tolerance for "front"
+
+              if (!isLookingFront) return null;
+
+              return {
+                box: detection.box,
+                landmarks: landmarks,
+                confidence: detection.score
+              };
+            })
+            .filter((d): d is DetectionData => d !== null);
+
           setDetections(formatted);
-          setSamples((prev) => prev + 1);
+          if (formatted.length > 0) setSamples((prev) => prev + 1);
         } else {
           setDetections([]);
         }
