@@ -24,15 +24,15 @@ export async function processCapture(
   const ctx = cropCanvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context not available');
 
-  // Because the video element is visually scale-x: -1, we should be careful. 
-  // However, videoElement pixels are NOT mirrored. It's just CSS.
-  // The faceapi bounding box is relative to the un-mirrored pixels.
-  // We draw the un-mirrored pixels into the canvas.
-  
+  // Quality settings
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  // Draw scaled crop to canvas
   ctx.drawImage(
     videoElement,
-    x - padX, y - padY, cropSize, cropSize, // Source
-    0, 0, 512, 512                          // Destination
+    x - padX, y - padY, cropSize, cropSize, 
+    0, 0, 512, 512 
   );
 
   // Apply visual style filter

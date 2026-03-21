@@ -9,29 +9,29 @@ export function applyStyleFilter(canvas: HTMLCanvasElement): HTMLCanvasElement {
   for (let i = 0; i < data.length; i += 4) {
     let r = data[i], g = data[i + 1], b = data[i + 2];
 
-    // Remove white/light background
+    // Softer background removal (avoid aliasing)
     const brightness = (r + g + b) / 3;
-    if (brightness > 220) {
-      data[i + 3] = 0; // Set transparent
+    if (brightness > 240) {
+      data[i + 3] = 0; // Transparent for pure whites/overexposed
       continue;
     }
 
-    // Grayscale
+    // High Quality Weighted Grayscale
     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
 
-    // Contrast
-    const contrastFactor = 1.5;
+    // Smoother Contrast Curve
+    const contrastFactor = 1.25;
     let val = ((gray - 128) * contrastFactor) + 128;
     val = Math.max(0, Math.min(255, val));
 
-    // Posterize
-    const levels = 6;
-    val = Math.round(val / (255 / levels)) * (255 / levels);
+    // High Quality Posterize (more levels for smoothness)
+    const levels = 32; 
+    val = Math.round(val / (255 / (levels - 1))) * (255 / (levels - 1));
 
-    // Minor tint adjustment
-    data[i] = Math.min(255, val * 1.1);   // R
-    data[i + 1] = Math.min(255, val * 0.9); // G
-    data[i + 2] = Math.min(255, val * 0.7); // B
+    // Balanced Monochromatic Tint (High Tech Cyan)
+    data[i] = val * 0.9;   // R
+    data[i + 1] = val; // G
+    data[i + 2] = val * 1.05; // B
     data[i + 3] = 255;
   }
 
