@@ -13,7 +13,7 @@
 //
 // See SPEC.md § "SceneRenderer.tsx" for full details.
 
-"use client";
+'use client';
 
 export default function SceneRenderer() {
   // TODO (Dev A): Implement Three.js scene

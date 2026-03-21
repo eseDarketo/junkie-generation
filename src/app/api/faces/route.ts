@@ -2,7 +2,7 @@
 // API Route: /api/faces — DEV B owns this file
 // ============================================================
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
 
 // TODO (Dev B): Import from lib/faceStore and implement GET/POST handlers
 // See SPEC.md § "Local API Routes" for the full contract.

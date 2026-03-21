@@ -6,7 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "npm run lint -- --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css,scss,html,yml,yaml}": "prettier --write"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -24,7 +35,12 @@
     "@types/three": "^0.183.1",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-prettier": "^5.5.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
     "postcss": "^8",
+    "prettier": "^3.8.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }

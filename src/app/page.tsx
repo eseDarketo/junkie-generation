@@ -2,7 +2,7 @@
 // Landing / Admin Page — DEV A owns this file
 // ============================================================
 
-import Link from "next/link";
+import Link from 'next/link';
 
 export default function Home() {
   return (
