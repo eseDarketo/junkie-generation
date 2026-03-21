@@ -63,17 +63,19 @@ export async function processCapture(
   // Follow jawline
   ctx.moveTo(jaw[0].x, jaw[0].y);
   for (let i = 1; i < jaw.length; i++) ctx.lineTo(jaw[i].x, jaw[i].y);
-  
+
   // High head/hair area estimation
   // We offset upwards relative to eye distance to capture forehead and hair
-  const headHeightOffset = eyeDistance * 1.8; 
-  
+  const headHeightOffset = eyeDistance * 1.8;
+
   // Right side of forehead
   ctx.lineTo(jaw[16].x, jaw[16].y - headHeightOffset * 0.5);
   // Top curve across head
   ctx.quadraticCurveTo(
-    midX, midY - headHeightOffset * 2.2,
-    jaw[0].x, jaw[0].y - headHeightOffset * 0.5
+    midX,
+    midY - headHeightOffset * 2.2,
+    jaw[0].x,
+    jaw[0].y - headHeightOffset * 0.5,
   );
   ctx.lineTo(jaw[0].x, jaw[0].y);
   ctx.closePath();

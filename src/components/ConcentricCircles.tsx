@@ -1,12 +1,12 @@
 // ============================================================
 // Starburst — Art deco radiating rays driven by audio
 // ============================================================
-"use client";
+'use client';
 
-import { useRef, useMemo } from "react";
-import { useFrame } from "@react-three/fiber";
-import * as THREE from "three";
-import { SCENE_WIDTH, SCENE_HEIGHT } from "@/lib/faceSlots";
+import { useRef, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+import { SCENE_WIDTH, SCENE_HEIGHT } from '@/lib/faceSlots';
 
 interface StarburstProps {
   openness: number;
@@ -37,11 +37,11 @@ export default function Starburst({ openness }: StarburstProps) {
     shape.moveTo(0, 0);
     shape.lineTo(
       Math.cos(angle - halfWidth) * RAY_LENGTH,
-      Math.sin(angle - halfWidth) * RAY_LENGTH
+      Math.sin(angle - halfWidth) * RAY_LENGTH,
     );
     shape.lineTo(
       Math.cos(angle + halfWidth) * RAY_LENGTH,
-      Math.sin(angle + halfWidth) * RAY_LENGTH
+      Math.sin(angle + halfWidth) * RAY_LENGTH,
     );
     shape.lineTo(0, 0);
     return new THREE.ShapeGeometry(shape);
@@ -88,10 +88,7 @@ export default function Starburst({ openness }: StarburstProps) {
   }, [rayConfigs]);
 
   return (
-    <group
-      ref={groupRef}
-      position={[SCENE_WIDTH / 2, -SCENE_HEIGHT / 2, -0.5]}
-    >
+    <group ref={groupRef} position={[SCENE_WIDTH / 2, -SCENE_HEIGHT / 2, -0.5]}>
       {rayConfigs.map(({ isThick }, i) => (
         <mesh
           key={i}

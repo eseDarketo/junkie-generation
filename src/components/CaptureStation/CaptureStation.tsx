@@ -356,7 +356,11 @@ export function CaptureStation() {
                   className={`h-32 ${colors.surfaceLowest} rounded border ${colors.outlineVariant}/20 overflow-hidden relative`}
                 >
                   {rawImage ? (
-                    <img src={rawImage} className="w-full h-full object-cover" alt="Raw Source" />
+                    <img
+                      src={rawImage}
+                      className="w-full h-full object-cover"
+                      alt="Raw Source"
+                    />
                   ) : stream ? (
                     <div className="w-full h-full bg-slate-800 animate-pulse">
                       <div className="absolute bottom-2 left-2 flex gap-1">
