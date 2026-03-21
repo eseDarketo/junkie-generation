@@ -20,7 +20,6 @@ const SceneRenderer = dynamic(() => import("@/components/SceneRenderer"), {
 const SONGS = [
   { id: "the-real", label: "The Real Slim Shady", track: "/music/the-real-slim-shady.mp3", vocalMap: "/music/the-real-vocals.json" },
   { id: "last", label: "Last Nite", track: "/music/last.mp3", vocalMap: "/music/last-vocals.json" },
-  { id: "redbone", label: "Redbone", track: "/music/redbone.mp3", vocalMap: "/music/redbone-vocals.json" },
 ];
 
 export default function DisplayPage() {
