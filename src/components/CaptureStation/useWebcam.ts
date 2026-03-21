@@ -17,9 +17,9 @@ export function useWebcam() {
         video: {
           width: { ideal: 1280 },
           height: { ideal: 720 },
-          facingMode: 'user'
+          facingMode: 'user',
         },
-        audio: false
+        audio: false,
       });
       setStream(mediaStream);
       if (videoRef.current) {

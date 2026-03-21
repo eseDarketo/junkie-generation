@@ -2,25 +2,37 @@
 // API Route: /api/faces — DEV B owns this file
 // ============================================================
 
+import { addFace, getAllFaces, getFacesSince } from '@/lib/faceStore';
 import { NextRequest, NextResponse } from 'next/server';
-import { addFace, getFaces } from '@/lib/faceStore';
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const since = searchParams.get('since');
-  const timestamp = since ? parseInt(since) : 0;
-  
-  return NextResponse.json({ faces: getFaces(timestamp) });
+  const since = req.nextUrl.searchParams.get('since');
+  const faces = since ? getFacesSince(Number(since)) : getAllFaces();
+  return NextResponse.json({ faces });
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { image, name } = await req.json();
-    if (!image) throw new Error('No image provided');
-    
-    addFace(image, name || 'Guest');
+    const body = await req.json();
+    if (!body.image) {
+      return NextResponse.json(
+        { success: false, error: 'No image provided' },
+        { status: 400 },
+      );
+    }
+
+    addFace({
+      id: body.id || crypto.randomUUID(),
+      image: body.image,
+      timestamp: Date.now(),
+      name: body.name,
+      descriptor: body.descriptor,
+    });
     return NextResponse.json({ success: true });
-  } catch (err) {
-    return NextResponse.json({ success: false, error: 'Bad Request' }, { status: 400 });
+  } catch {
+    return NextResponse.json(
+      { success: false, error: 'Bad Request' },
+      { status: 400 },
+    );
   }
 }

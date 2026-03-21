@@ -45,6 +45,20 @@ This is a **hackathon MVP** — 8-hour build target. Zero AI/ML inference at run
                                │  - Social share  │
                                └──────────────────┘
                                     [DEV B]
+                                         ▲
+                                         │
+                               ┌──────────────────┐
+                               │  IDENTIFY PAGE   │
+                               │  /identify       │
+                               │                  │
+                               │  - Front camera  │
+                               │  - face-api.js   │
+                               │    descriptor    │
+                               │    matching      │
+                               │  - Redirects to  │
+                               │    /share/[id]   │
+                               └──────────────────┘
+                                  [Guest's phone]
 ```
 
 ---
@@ -77,6 +91,8 @@ partyface/
 │   │   │   └── page.tsx          # Webcam capture station
 │   │   ├── display/
 │   │   │   └── page.tsx          # Main display screen (the big screen)
+│   │   ├── identify/
+│   │   │   └── page.tsx          # Guest self-identification (camera matching)
 │   │   └── share/
 │   │       └── [id]/
 │   │           └── page.tsx      # Individual avatar share page
@@ -85,6 +101,7 @@ partyface/
 │   │   ├── FaceSlot.tsx          # Individual face in the group photo
 │   │   ├── LipSyncEngine.tsx     # Audio-reactive mouth animation controller (Canadian + sprite modes)
 │   │   ├── CaptureStation.tsx    # Webcam + face detection UI
+│   │   ├── IdentifyStation.tsx   # Camera-based guest self-identification
 │   │   ├── FaceProcessor.ts      # Face crop + style filter pipeline
 │   │   └── MusicPlayer.tsx       # Audio player + Web Audio analyzer
 │   ├── lib/
@@ -367,6 +384,7 @@ interface StoredFace {
   image: string; // Base64 PNG, cropped & filtered face
   timestamp: number;
   name?: string; // Optional, for famous faces
+  descriptor?: number[]; // 128-dim face descriptor (for /identify matching)
 }
 
 let faces: StoredFace[] = [];
@@ -481,6 +499,34 @@ export function getAmplitude(analyser: AnalyserNode): number {
 - "Share on Instagram" button (just opens IG with the image)
 - QR code displayed on the main screen links here
 
+### 9. Identify Page — /identify
+
+**Guest self-identification page.** Guests open `/identify` on their phone to find their captured avatar using face recognition. **Matching happens server-side** — the phone never downloads other guests' data.
+
+**How it works:**
+
+1. Phone loads face-api.js models: `tinyFaceDetector`, `faceLandmark68Net`, `faceRecognitionNet`
+2. Activates front camera and runs face detection every ~800ms
+3. Extracts 128-dim face descriptor locally (~512 bytes)
+4. Sends descriptor to `POST /api/identify` — server compares against all stored descriptors
+5. Server returns `{ match: { id } }` or `{ match: null }`
+6. On match → brief "Found you!" animation → redirect to `/share/[id]`
+7. After 20s with no match → "Not found" with retry option
+
+**Why server-side matching:**
+
+- Phone never downloads other guests' face images or descriptors
+- Matching threshold and logic can be tuned centrally
+- Only ~512 bytes sent per scan (128 floats), response is a single ID
+
+**Requires:**
+
+- `face_recognition_model` weights in `public/models/` (in addition to existing models)
+- `StoredFace.descriptor` field (optional `number[]`) — the capture station should extract and POST descriptors alongside face images
+- `POST /api/identify` — receives `{ descriptor: number[128] }`, returns `{ match: { id } | null, guestCount }`
+
+**Full spec:** See `docs/specs/features/IDENTIFY_PAGE.md`
+
 ---
 
 ## Visual Design Notes
@@ -592,6 +638,7 @@ interface StoredFace {
   image: string; // Base64 PNG, cropped & filtered face
   timestamp: number;
   name?: string; // Optional, for famous faces
+  descriptor?: number[]; // 128-dim face descriptor (for /identify matching)
 }
 
 interface FaceSlot {
@@ -608,10 +655,13 @@ interface FaceSlot {
 }
 
 // API contract:
-// POST /api/faces  — body: { image: string, name?: string }
-//                  — response: { success: true }
-// GET  /api/faces  — query: ?since=<timestamp> (optional)
-//                  — response: { faces: StoredFace[] }
+// POST /api/faces     — body: { image: string, name?: string, descriptor?: number[] }
+//                     — response: { success: true }
+// GET  /api/faces     — query: ?since=<timestamp> (optional)
+//                     — response: { faces: StoredFace[] }
+// POST /api/identify  — body: { descriptor: number[128] }
+//                     — response: { match: { id } | null, guestCount: number }
+//                     (server-side matching, phone sends only its own descriptor)
 ```
 
 ### Git Workflow

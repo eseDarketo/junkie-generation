@@ -1,16 +1,20 @@
 'use client';
 
-import { useEffect, useState, RefObject } from 'react';
-import * as faceapi from 'face-api.js';
 import * as tf from '@tensorflow/tfjs';
+import * as faceapi from 'face-api.js';
+import { RefObject, useEffect, useState } from 'react';
 
-interface DetectionData {
+export interface DetectionData {
   box: faceapi.Box;
   landmarks: faceapi.FaceLandmarks68;
   confidence: number;
+  descriptor: Float32Array | null;
 }
 
-export function useFaceDetection(videoRef: RefObject<HTMLVideoElement | null>, isActive: boolean) {
+export function useFaceDetection(
+  videoRef: RefObject<HTMLVideoElement | null>,
+  isActive: boolean,
+) {
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [detections, setDetections] = useState<DetectionData[]>([]);
   const [samples, setSamples] = useState(0);
@@ -18,18 +22,17 @@ export function useFaceDetection(videoRef: RefObject<HTMLVideoElement | null>, i
   // 1. Load models once
   useEffect(() => {
     const loadModels = async () => {
-      // Ensure we are in browser and tf is present
       if (typeof window === 'undefined' || !tf) return;
 
       try {
-        // v1.7.0 tf.ready() equivalent: check if backends are here
         if (tf.getBackend() !== 'webgl') {
           await tf.setBackend('webgl');
         }
-        
+
         await Promise.all([
           faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
-          faceapi.nets.faceLandmark68Net.loadFromUri('/models')
+          faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+          faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
         ]);
         setModelsLoaded(true);
       } catch (err) {
@@ -39,7 +42,7 @@ export function useFaceDetection(videoRef: RefObject<HTMLVideoElement | null>, i
     loadModels();
   }, []);
 
-  // 2. Detection loop (Multi-face)
+  // 2. Multi-face detection loop with descriptor extraction
   useEffect(() => {
     if (!modelsLoaded || !isActive) {
       setDetections([]);
@@ -50,7 +53,11 @@ export function useFaceDetection(videoRef: RefObject<HTMLVideoElement | null>, i
 
     const runDetection = async () => {
       if (!isActive || !modelsLoaded) return;
-      if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) {
+      if (
+        !videoRef.current ||
+        videoRef.current.paused ||
+        videoRef.current.ended
+      ) {
         timerId = setTimeout(runDetection, 100);
         return;
       }
@@ -60,35 +67,44 @@ export function useFaceDetection(videoRef: RefObject<HTMLVideoElement | null>, i
         timerId = setTimeout(runDetection, 100);
         return;
       }
-      
+
       try {
         const allDetections = await faceapi
-          .detectAllFaces(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
-          .withFaceLandmarks();
+          .detectAllFaces(
+            videoEl,
+            new faceapi.TinyFaceDetectorOptions({
+              inputSize: 320,
+              scoreThreshold: 0.3,
+            }),
+          )
+          .withFaceLandmarks()
+          .withFaceDescriptors();
 
         if (allDetections && allDetections.length > 0) {
           const formatted = allDetections
-            .map(d => {
-              const { landmarks, detection } = d;
-              
+            .map((d) => {
+              const { landmarks, detection, descriptor } = d;
+
               // Calculate symmetry for frontal face estimation
-              const leftEye = landmarks.getLeftEye()[0]; // Left eye leftmost point
-              const rightEye = landmarks.getRightEye()[3]; // Right eye rightmost point
-              const noseTip = landmarks.getNose()[6]; // Nose tip
+              const leftEye = landmarks.getLeftEye()[0];
+              const rightEye = landmarks.getRightEye()[3];
+              const noseTip = landmarks.getNose()[6];
 
               const distToLeft = Math.abs(noseTip.x - leftEye.x);
               const distToRight = Math.abs(rightEye.x - noseTip.x);
-              
-              // If distance to left/right eye from nose tip is balanced, it's looking front
-              const symmetryRatio = Math.abs(distToLeft - distToRight) / Math.max(distToLeft, distToRight);
-              const isLookingFront = symmetryRatio < 0.25; // 25% tolerance for "front"
+
+              const symmetryRatio =
+                Math.abs(distToLeft - distToRight) /
+                Math.max(distToLeft, distToRight);
+              const isLookingFront = symmetryRatio < 0.25;
 
               if (!isLookingFront) return null;
 
               return {
                 box: detection.box,
                 landmarks: landmarks,
-                confidence: detection.score
+                confidence: detection.score,
+                descriptor: descriptor,
               };
             })
             .filter((d): d is DetectionData => d !== null);

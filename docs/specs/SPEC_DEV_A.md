@@ -63,21 +63,21 @@ package.json                       # Both devs add deps here
 
 export interface StoredFace {
   id: string;
-  image: string;         // Base64 PNG, cropped & filtered face
+  image: string; // Base64 PNG, cropped & filtered face
   timestamp: number;
-  name?: string;         // Optional, for famous faces
+  name?: string; // Optional, for famous faces
 }
 
 export interface FaceSlot {
   id: string;
-  x: number;             // X position on canvas (pixels)
-  y: number;             // Y position on canvas (pixels)
-  scale: number;         // Size multiplier (front row bigger, back row smaller)
-  row: number;           // Which row (for depth/overlap ordering)
+  x: number; // X position on canvas (pixels)
+  y: number; // Y position on canvas (pixels)
+  scale: number; // Size multiplier (front row bigger, back row smaller)
+  row: number; // Which row (for depth/overlap ordering)
   occupied: boolean;
-  faceImage?: string;    // Base64 or URL of the face image
-  isFamous: boolean;     // Pre-loaded celebrity vs. party guest
-  label?: string;        // Name (for famous faces)
+  faceImage?: string; // Base64 or URL of the face image
+  isFamous: boolean; // Pre-loaded celebrity vs. party guest
+  label?: string; // Name (for famous faces)
   animationMode: 'canadian' | 'sprite';
 }
 
@@ -89,16 +89,16 @@ export interface FaceSlot {
 
 ## Your Sprint Schedule
 
-| Hour | Task | Deliverable |
-|------|------|-------------|
-| 1 | Project setup (with Dev B), Three.js scene with face grid using placeholder colored rectangles | Rectangles visible on screen in grid layout |
-| 2 | Ken Burns camera animation + face split logic (each rectangle becomes two halves) | Cinematic pan/zoom working |
-| 3 | Web Audio analyzer + Canadian mouth rotation mapped to amplitude | Faces doing South Park lip-sync to music! |
-| 4 | Load real famous face PNGs from `/public/faces/`, tune camera path | 20 famous faces singing on screen |
-| 5 | **INTEGRATION:** Wire up polling from `/api/faces` to receive live guest faces | New faces from Dev B appear on display |
-| 6 | Polish: per-face enthusiasm variation, idle animation, camera cinematography | Smooth, cinematic experience |
-| 7 | (STRETCH) Mouth sprite Mode B + random mode mixing per face | Visual variety |
-| 8 | Demo prep, help with final integration | Presentable demo |
+| Hour | Task                                                                                           | Deliverable                                 |
+| ---- | ---------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| 1    | Project setup (with Dev B), Three.js scene with face grid using placeholder colored rectangles | Rectangles visible on screen in grid layout |
+| 2    | Ken Burns camera animation + face split logic (each rectangle becomes two halves)              | Cinematic pan/zoom working                  |
+| 3    | Web Audio analyzer + Canadian mouth rotation mapped to amplitude                               | Faces doing South Park lip-sync to music!   |
+| 4    | Load real famous face PNGs from `/public/faces/`, tune camera path                             | 20 famous faces singing on screen           |
+| 5    | **INTEGRATION:** Wire up polling from `/api/faces` to receive live guest faces                 | New faces from Dev B appear on display      |
+| 6    | Polish: per-face enthusiasm variation, idle animation, camera cinematography                   | Smooth, cinematic experience                |
+| 7    | (STRETCH) Mouth sprite Mode B + random mode mixing per face                                    | Visual variety                              |
+| 8    | Demo prep, help with final integration                                                         | Presentable demo                            |
 
 ---
 
@@ -109,6 +109,7 @@ export interface FaceSlot {
 This is the heart of YOUR work. It renders the "group photo" and animates the camera.
 
 **Implementation approach:**
+
 - Use @react-three/fiber with an orthographic camera looking at a large 2D scene
 - Face slots are textured quads (planes) positioned in 3D space, all on the same Z plane (flat collage)
 - The camera does a slow, smooth Ken Burns animation: panning left/right, zooming in/out on random face clusters, occasionally focusing on a single face
@@ -116,19 +117,20 @@ This is the heart of YOUR work. It renders the "group photo" and animates the ca
 - The camera path is pre-scripted as a series of keyframes
 
 **Ken Burns keyframe system:**
+
 ```typescript
 interface CameraKeyframe {
-  x: number;          // center X on the canvas (0-1 normalized)
-  y: number;          // center Y on the canvas (0-1 normalized)
-  zoom: number;       // 1 = full scene, 3 = close-up on a few faces
-  duration: number;   // seconds to interpolate to this keyframe
+  x: number; // center X on the canvas (0-1 normalized)
+  y: number; // center Y on the canvas (0-1 normalized)
+  zoom: number; // 1 = full scene, 3 = close-up on a few faces
+  duration: number; // seconds to interpolate to this keyframe
 }
 
 const cameraPath: CameraKeyframe[] = [
   { x: 0.2, y: 0.3, zoom: 1.5, duration: 8 },
-  { x: 0.7, y: 0.5, zoom: 2.5, duration: 10 },  // zoom into a cluster
+  { x: 0.7, y: 0.5, zoom: 2.5, duration: 10 }, // zoom into a cluster
   { x: 0.5, y: 0.8, zoom: 1.2, duration: 6 },
-  { x: 0.9, y: 0.2, zoom: 3.0, duration: 12 },   // close-up on one face
+  { x: 0.9, y: 0.2, zoom: 3.0, duration: 12 }, // close-up on one face
   // ... loops back to start
 ];
 ```
@@ -146,29 +148,59 @@ Generate 40-50 slots arranged in 4-5 rows. Back rows have smaller scale, front r
 Each face is split horizontally at ~55% from the top (just below the nose). The top half hinges upward like a Pac-Man mouth.
 
 **Each face slot = TWO meshes:**
+
 - **Bottom half:** static, stays in place (chin, jaw)
 - **Top half:** rotates around its bottom edge (forehead, eyes, nose)
 
 **Implementation:**
+
 ```typescript
-function splitFace(faceCanvas: HTMLCanvasElement): { top: HTMLCanvasElement, bottom: HTMLCanvasElement } {
+function splitFace(faceCanvas: HTMLCanvasElement): {
+  top: HTMLCanvasElement;
+  bottom: HTMLCanvasElement;
+} {
   const splitY = Math.floor(faceCanvas.height * 0.55);
 
   const topCanvas = document.createElement('canvas');
   topCanvas.width = faceCanvas.width;
   topCanvas.height = splitY;
-  topCanvas.getContext('2d')!.drawImage(faceCanvas, 0, 0, faceCanvas.width, splitY, 0, 0, faceCanvas.width, splitY);
+  topCanvas
+    .getContext('2d')!
+    .drawImage(
+      faceCanvas,
+      0,
+      0,
+      faceCanvas.width,
+      splitY,
+      0,
+      0,
+      faceCanvas.width,
+      splitY,
+    );
 
   const bottomCanvas = document.createElement('canvas');
   bottomCanvas.width = faceCanvas.width;
   bottomCanvas.height = faceCanvas.height - splitY;
-  bottomCanvas.getContext('2d')!.drawImage(faceCanvas, 0, splitY, faceCanvas.width, faceCanvas.height - splitY, 0, 0, faceCanvas.width, faceCanvas.height - splitY);
+  bottomCanvas
+    .getContext('2d')!
+    .drawImage(
+      faceCanvas,
+      0,
+      splitY,
+      faceCanvas.width,
+      faceCanvas.height - splitY,
+      0,
+      0,
+      faceCanvas.width,
+      faceCanvas.height - splitY,
+    );
 
   return { top: topCanvas, bottom: bottomCanvas };
 }
 ```
 
 **Animation mapping:**
+
 - Amplitude `0.0` → rotation `0°` (closed)
 - Amplitude `1.0` → rotation `25°` (wide open)
 - Each face gets a random delay offset (50-300ms) — don't sync them all
@@ -210,7 +242,7 @@ useEffect(() => {
     const res = await fetch(`/api/faces?since=${lastPoll}`);
     const { faces } = await res.json();
     if (faces.length > 0) {
-      faces.forEach(face => addFaceToScene(face));
+      faces.forEach((face) => addFaceToScene(face));
       setLastPoll(Date.now());
     }
   }, 2500);
@@ -234,6 +266,7 @@ When a new face arrives: load the base64 image as a texture, split it, place bot
 ## Testing Before Integration (Hours 1-4)
 
 You can test your display completely independently:
+
 1. Use placeholder colored rectangles first (hour 1)
 2. Swap in real famous face PNGs from `/public/faces/` (hour 4)
 3. For testing the polling before Dev B's API exists, add a simple test function that manually adds a face to the scene

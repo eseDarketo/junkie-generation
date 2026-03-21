@@ -6,7 +6,7 @@ import { applyStyleFilter } from '../../lib/imageFilter';
 export async function processCapture(
   videoElement: HTMLVideoElement,
   box: faceapi.Box,
-  landmarks: faceapi.FaceLandmarks68
+  landmarks: faceapi.FaceLandmarks68,
 ): Promise<string> {
   const cropCanvas = document.createElement('canvas');
   cropCanvas.width = 512;
@@ -20,7 +20,7 @@ export async function processCapture(
 
   const getCenter = (pts: faceapi.Point[]) => ({
     x: pts.reduce((sum, p) => sum + p.x, 0) / pts.length,
-    y: pts.reduce((sum, p) => sum + p.y, 0) / pts.length
+    y: pts.reduce((sum, p) => sum + p.y, 0) / pts.length,
   });
 
   const lCenter = getCenter(leftEye);

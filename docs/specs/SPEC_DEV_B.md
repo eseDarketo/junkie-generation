@@ -62,9 +62,9 @@ package.json                       # Both devs add deps here
 
 export interface StoredFace {
   id: string;
-  image: string;         // Base64 PNG, cropped & filtered face
+  image: string; // Base64 PNG, cropped & filtered face
   timestamp: number;
-  name?: string;         // Optional, for famous faces
+  name?: string; // Optional, for famous faces
 }
 
 // API you will BUILD (Dev A consumes it):
@@ -78,16 +78,16 @@ export interface StoredFace {
 
 ## Your Sprint Schedule
 
-| Hour | Task | Deliverable |
-|------|------|-------------|
-| 1 | Project setup (with Dev A), `/api/faces` route + in-memory store | API responding to GET/POST |
-| 2 | CaptureStation: webcam access, face-api.js model loading, detection loop | Faces being detected in browser |
-| 3 | Face cropping with padding + debug page showing raw → detected → cropped | Visual pipeline debug tool |
-| 4 | imageFilter.ts: white bg removal → grayscale → contrast → posterize | Styled faces ready for display |
-| 5 | **INTEGRATION:** POST captured faces to API, test with Dev A's display | Faces flowing from webcam to big screen |
-| 6 | Tune filter params, detection confidence, cooldown timing based on display | Polished capture experience |
-| 7 | (STRETCH) Share page `/share/[id]` with avatar preview + QR code | Social sharing feature |
-| 8 | Demo prep, help with final integration | Presentable demo |
+| Hour | Task                                                                       | Deliverable                             |
+| ---- | -------------------------------------------------------------------------- | --------------------------------------- |
+| 1    | Project setup (with Dev A), `/api/faces` route + in-memory store           | API responding to GET/POST              |
+| 2    | CaptureStation: webcam access, face-api.js model loading, detection loop   | Faces being detected in browser         |
+| 3    | Face cropping with padding + debug page showing raw → detected → cropped   | Visual pipeline debug tool              |
+| 4    | imageFilter.ts: white bg removal → grayscale → contrast → posterize        | Styled faces ready for display          |
+| 5    | **INTEGRATION:** POST captured faces to API, test with Dev A's display     | Faces flowing from webcam to big screen |
+| 6    | Tune filter params, detection confidence, cooldown timing based on display | Polished capture experience             |
+| 7    | (STRETCH) Share page `/share/[id]` with avatar preview + QR code           | Social sharing feature                  |
+| 8    | Demo prep, help with final integration                                     | Presentable demo                        |
 
 ---
 
@@ -98,6 +98,7 @@ export interface StoredFace {
 This is the bridge. Build it in the first 30 minutes so both you and Dev A can work independently.
 
 **In-memory store (`lib/faceStore.ts`):**
+
 ```typescript
 // Simple module-level storage. Resets on server restart — fine for hackathon.
 
@@ -114,11 +115,12 @@ export function getAllFaces(): StoredFace[] {
 }
 
 export function getFacesSince(timestamp: number): StoredFace[] {
-  return faces.filter(f => f.timestamp > timestamp);
+  return faces.filter((f) => f.timestamp > timestamp);
 }
 ```
 
 **API route (`app/api/faces/route.ts`):**
+
 ```typescript
 import { addFace, getAllFaces, getFacesSince } from '@/lib/faceStore';
 import { NextRequest, NextResponse } from 'next/server';
@@ -148,6 +150,7 @@ export async function POST(req: NextRequest) {
 **Route:** `/capture` — during the event this runs in a browser tab on the same machine (or a second device on the same WiFi).
 
 **Flow:**
+
 1. On page load, request webcam via `navigator.mediaDevices.getUserMedia`
 2. Show live video feed
 3. Load face-api.js models from `/public/models/`:
@@ -166,6 +169,7 @@ export async function POST(req: NextRequest) {
 
 **face-api.js models needed in `public/models/`:**
 Download from https://github.com/justadudewhohacks/face-api.js/tree/master/weights
+
 - `tiny_face_detector_model-shard1` + manifest
 - `face_landmark_68_model-shard1` + manifest
 
@@ -176,6 +180,7 @@ This is critical for visual cohesion. All faces (famous + guests) must look like
 **BACKGROUND STANDARD:** All face images use WHITE or LIGHT backgrounds. The capture station has a white/well-lit background behind guests. Famous faces are sourced with white backgrounds.
 
 **Filter pipeline (applied via Canvas 2D context):**
+
 ```typescript
 export function applyStyleFilter(canvas: HTMLCanvasElement): HTMLCanvasElement {
   const ctx = canvas.getContext('2d')!;
@@ -183,13 +188,15 @@ export function applyStyleFilter(canvas: HTMLCanvasElement): HTMLCanvasElement {
   const data = imageData.data;
 
   for (let i = 0; i < data.length; i += 4) {
-    let r = data[i], g = data[i+1], b = data[i+2];
+    let r = data[i],
+      g = data[i + 1],
+      b = data[i + 2];
 
     // Step 0: Remove white/light background
     // If pixel brightness > 220, set alpha to 0 (transparent)
     const brightness = (r + g + b) / 3;
     if (brightness > 220) {
-      data[i+3] = 0; // transparent
+      data[i + 3] = 0; // transparent
       continue;
     }
 
@@ -198,7 +205,7 @@ export function applyStyleFilter(canvas: HTMLCanvasElement): HTMLCanvasElement {
 
     // Step 2: Increase contrast (factor 1.4-1.6)
     const contrastFactor = 1.5;
-    let val = ((gray - 128) * contrastFactor) + 128;
+    let val = (gray - 128) * contrastFactor + 128;
     val = Math.max(0, Math.min(255, val));
 
     // Step 3: Posterize (reduce tonal range)
@@ -206,9 +213,9 @@ export function applyStyleFilter(canvas: HTMLCanvasElement): HTMLCanvasElement {
     val = Math.round(val / (255 / levels)) * (255 / levels);
 
     // Step 4: Optional sepia/warm tint
-    data[i]   = Math.min(255, val * 1.1);  // R
-    data[i+1] = Math.min(255, val * 0.9);  // G
-    data[i+2] = Math.min(255, val * 0.7);  // B
+    data[i] = Math.min(255, val * 1.1); // R
+    data[i + 1] = Math.min(255, val * 0.9); // G
+    data[i + 2] = Math.min(255, val * 0.7); // B
   }
 
   ctx.putImageData(imageData, 0, 0);
@@ -225,7 +232,7 @@ Orchestrates the full flow from raw webcam frame to styled face:
 ```typescript
 export async function processCapture(
   videoElement: HTMLVideoElement,
-  detection: faceapi.FaceDetection
+  detection: faceapi.FaceDetection,
 ): Promise<string> {
   // 1. Get bounding box from detection
   const { x, y, width, height } = detection.box;
@@ -238,13 +245,19 @@ export async function processCapture(
   // 3. Crop face from video frame to a canvas
   const cropCanvas = document.createElement('canvas');
   const cropSize = Math.max(width + padX * 2, height + padY * 2);
-  cropCanvas.width = 512;  // standardize size
+  cropCanvas.width = 512; // standardize size
   cropCanvas.height = 512;
   const ctx = cropCanvas.getContext('2d')!;
   ctx.drawImage(
     videoElement,
-    x - padX, y - padY, cropSize, cropSize,
-    0, 0, 512, 512
+    x - padX,
+    y - padY,
+    cropSize,
+    cropSize,
+    0,
+    0,
+    512,
+    512,
   );
 
   // 4. Apply style filter
@@ -258,6 +271,7 @@ export async function processCapture(
 ### 5. Share Page — /share/[id] (STRETCH GOAL)
 
 If time permits after hour 6:
+
 - Route: `/share/[id]` where id matches the face's id in the store
 - Shows the guest's filtered face with a simple CSS animation mimicking the Canadian mouth
 - Uses `HTMLCanvasElement.captureStream()` + MediaRecorder to export a short clip
@@ -270,6 +284,7 @@ If time permits after hour 6:
 ## Testing Before Integration (Hours 1-4)
 
 You can test your entire pipeline independently:
+
 1. **Hour 1:** Test API with curl or Postman — POST a test face, GET it back
 2. **Hour 2:** Test webcam capture — see face detections drawn on the video feed
 3. **Hour 3:** Test cropping — see cropped faces displayed on the debug page
@@ -287,6 +302,7 @@ You can test your entire pipeline independently:
 ```
 
 Optional for stretch goals:
+
 ```json
 {
   "qrcode.react": "^3.0.0"

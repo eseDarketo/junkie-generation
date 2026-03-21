@@ -8,6 +8,7 @@ export interface StoredFace {
   image: string; // Base64 PNG, cropped & filtered face
   timestamp: number;
   name?: string; // Optional, for famous faces
+  descriptor?: number[]; // 128-dim face descriptor from face-api.js (for identify/matching)
 }
 
 export interface FaceSlot {
@@ -31,7 +32,10 @@ export interface CameraKeyframe {
 }
 
 // API contract:
-// POST /api/faces  — body: { image: string, name?: string }
-//                  — response: { success: true }
-// GET  /api/faces  — query: ?since=<timestamp> (optional)
-//                  — response: { faces: StoredFace[] }
+// POST /api/faces     — body: { image: string, name?: string, descriptor?: number[] }
+//                     — response: { success: true }
+// GET  /api/faces     — query: ?since=<timestamp> (optional)
+//                     — response: { faces: StoredFace[] }
+// POST /api/identify  — body: { descriptor: number[128] }
+//                     — response: { match: { id } | null, guestCount: number }
+//                     (server-side matching, phone sends only its own descriptor)

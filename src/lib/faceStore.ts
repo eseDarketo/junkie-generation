@@ -1,34 +1,32 @@
 // ============================================================
 // FaceStore: In-memory store for guest faces — DEV B
-// ===================================
-// This is used by /api/faces POST/GET handlers.
+// ============================================================
+// This is used by /api/faces and /api/identify handlers.
 
-export interface StoredFace {
-  id: string;
-  image: string; // base64
-  name: string;
-  timestamp: number;
-}
+import type { StoredFace } from '@/types';
 
 // In-memory array (clears on server restart)
 const faces: StoredFace[] = [];
 
-export function addFace(image: string, name: string = 'Guest'): StoredFace {
-  const newFace: StoredFace = {
-    id: Math.random().toString(36).substring(2, 9),
-    image,
-    name,
-    timestamp: Date.now(),
-  };
-  
+export function addFace(face: StoredFace) {
   // Keep only last 50 to avoid memory bloat
-  faces.unshift(newFace);
+  faces.unshift(face);
   if (faces.length > 50) faces.pop();
-  
-  return newFace;
+}
+
+export function getAllFaces(): StoredFace[] {
+  return faces;
 }
 
 export function getFaces(since?: number): StoredFace[] {
   if (!since) return faces;
-  return faces.filter(f => f.timestamp > since);
+  return faces.filter((f) => f.timestamp > since);
+}
+
+export function getFacesSince(timestamp: number): StoredFace[] {
+  return faces.filter((f) => f.timestamp > timestamp);
+}
+
+export function getFaceById(id: string): StoredFace | undefined {
+  return faces.find((f) => f.id === id);
 }
