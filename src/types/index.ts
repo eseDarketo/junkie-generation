@@ -20,7 +20,7 @@ export interface FaceSlot {
   faceImage?: string; // Base64 or URL of the face image
   isFamous: boolean; // Pre-loaded celebrity vs. party guest
   label?: string; // Name (for famous faces, shown on hover/zoom)
-  animationMode: "canadian" | "sprite";
+  animationMode: 'canadian' | 'sprite';
 }
 
 export interface CameraKeyframe {

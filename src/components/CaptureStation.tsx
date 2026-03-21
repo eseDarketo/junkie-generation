@@ -9,7 +9,7 @@
 //
 // See SPEC.md § "CaptureStation.tsx" for full details.
 
-"use client";
+'use client';
 
 export default function CaptureStation() {
   // TODO (Dev B): Implement webcam capture + face detection

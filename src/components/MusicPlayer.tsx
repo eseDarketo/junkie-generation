@@ -8,7 +8,7 @@
 //
 // See SPEC.md § "MusicPlayer.tsx" for details.
 
-"use client";
+'use client';
 
 export default function MusicPlayer() {
   // TODO (Dev A): Implement audio player + analyser

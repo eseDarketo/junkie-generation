@@ -8,7 +8,7 @@
 //
 // See SPEC.md § "FaceSlot System" for details.
 
-import type { FaceSlot } from "@/types";
+import type { FaceSlot } from '@/types';
 
 // TODO (Dev A): Generate face slot positions
 export type { FaceSlot };

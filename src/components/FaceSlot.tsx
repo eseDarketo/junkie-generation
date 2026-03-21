@@ -8,7 +8,7 @@
 // Props should include the FaceSlot data + current amplitude.
 // See SPEC.md § "LipSyncEngine" for the split/rotation logic.
 
-"use client";
+'use client';
 
 export default function FaceSlot() {
   // TODO (Dev A): Implement face slot with split face meshes

@@ -12,7 +12,7 @@
 //
 // See SPEC.md § "LipSyncEngine.tsx" for full details.
 
-"use client";
+'use client';
 
 export default function LipSyncEngine() {
   // TODO (Dev A): Implement lip sync controller

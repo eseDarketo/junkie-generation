@@ -15,12 +15,12 @@ Open [http://localhost:3000](http://localhost:3000) to see the landing page.
 
 ### Routes
 
-| Route | Purpose |
-|-------|---------|
-| `/` | Landing / admin page |
-| `/display` | Main display screen (Three.js scene + lip-sync) |
-| `/capture` | Webcam capture station (face detection) |
-| `/share/[id]` | Individual avatar share page |
+| Route         | Purpose                                         |
+| ------------- | ----------------------------------------------- |
+| `/`           | Landing / admin page                            |
+| `/display`    | Main display screen (Three.js scene + lip-sync) |
+| `/capture`    | Webcam capture station (face detection)         |
+| `/share/[id]` | Individual avatar share page                    |
 
 ### Network Access
 
@@ -32,11 +32,11 @@ npx next dev -H 0.0.0.0
 
 ## Developer Ownership
 
-| Dev | Owns |
-|-----|------|
+| Dev                             | Owns                                                                                                                                              |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Dev A** (Display & Animation) | `display/page.tsx`, `SceneRenderer`, `FaceSlot`, `LipSyncEngine`, `MusicPlayer`, `faceSlots.ts`, `audioAnalyzer.ts`, `mouthMapper.ts`, `page.tsx` |
-| **Dev B** (Capture & API) | `capture/page.tsx`, `api/faces/route.ts`, `share/[id]/page.tsx`, `CaptureStation`, `FaceProcessor`, `faceStore.ts`, `imageFilter.ts` |
-| **Shared** | `types/index.ts`, `package.json`, `public/faces/`, `public/music/`, `public/models/` |
+| **Dev B** (Capture & API)       | `capture/page.tsx`, `api/faces/route.ts`, `share/[id]/page.tsx`, `CaptureStation`, `FaceProcessor`, `faceStore.ts`, `imageFilter.ts`              |
+| **Shared**                      | `types/index.ts`, `package.json`, `public/faces/`, `public/music/`, `public/models/`                                                              |
 
 See `SPEC.md` for the full specification.
 

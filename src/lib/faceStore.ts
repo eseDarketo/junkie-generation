@@ -4,7 +4,7 @@
 // Simple module-level storage. Resets on server restart (fine for hackathon).
 // See SPEC.md § "Local API Routes" for details.
 
-import type { StoredFace } from "@/types";
+import type { StoredFace } from '@/types';
 
 // TODO (Dev B): Implement addFace, getAllFaces, getFacesSince
 export type { StoredFace };
