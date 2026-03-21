@@ -12,26 +12,26 @@ const SCENE_HEIGHT = 2000;
 
 // Pre-loaded famous faces (VIPs)
 export const VIP_FACES: Array<{ file: string; label: string }> = [
-  { file: "/faces/vip-bad-bunny-compressed.jpg", label: "Bad Bunny" },
-  { file: "/faces/vip-david-bowie-compressed.jpg", label: "David Bowie" },
-  { file: "/faces/vip-dua-compressed.jpg", label: "Dua Lipa" },
-  { file: "/faces/vip-lio-messi-compressed.jpg", label: "Lio Messi" },
-  { file: "/faces/vip-nina-simone-compressed.jpg", label: "Nina Simone" },
-  { file: "/faces/vip-rick-rubin-compressed.jpg", label: "Rick Rubin" },
-  { file: "/faces/vip-til-compressed.jpg", label: "Til" },
-  { file: "/faces/vip-ye-compressed.jpeg", label: "Ye" },
+  { file: '/faces/vip-bad-bunny-compressed.jpg', label: 'Bad Bunny' },
+  { file: '/faces/vip-david-bowie-compressed.jpg', label: 'David Bowie' },
+  { file: '/faces/vip-dua-compressed.jpg', label: 'Dua Lipa' },
+  { file: '/faces/vip-lio-messi-compressed.jpg', label: 'Lio Messi' },
+  { file: '/faces/vip-nina-simone-compressed.jpg', label: 'Nina Simone' },
+  { file: '/faces/vip-rick-rubin-compressed.jpg', label: 'Rick Rubin' },
+  { file: '/faces/vip-til-compressed.jpg', label: 'Til' },
+  { file: '/faces/vip-ye-compressed.jpeg', label: 'Ye' },
 ];
 
 // Generic placeholder face for empty slots
-export const DUMMY_FACE = "/faces/dummy-face-compressed.jpeg";
+export const DUMMY_FACE = '/faces/dummy-face-compressed.jpeg';
 
 // Row configurations: [y position (0-1), scale, number of faces]
 const ROW_CONFIG: Array<{ y: number; scale: number; count: number }> = [
-  { y: 0.12, scale: 0.55, count: 8 },  // Row 0: back row (smallest)
-  { y: 0.28, scale: 0.65, count: 7 },  // Row 1
-  { y: 0.46, scale: 0.75, count: 7 },  // Row 2: middle
-  { y: 0.65, scale: 0.88, count: 6 },  // Row 3
-  { y: 0.85, scale: 1.0, count: 6 },   // Row 4: front row (largest)
+  { y: 0.12, scale: 0.55, count: 8 }, // Row 0: back row (smallest)
+  { y: 0.28, scale: 0.65, count: 7 }, // Row 1
+  { y: 0.46, scale: 0.75, count: 7 }, // Row 2: middle
+  { y: 0.65, scale: 0.88, count: 6 }, // Row 3
+  { y: 0.85, scale: 1.0, count: 6 }, // Row 4: front row (largest)
 ];
 
 // Deterministic pseudo-random offset based on slot index
@@ -65,7 +65,7 @@ export function generateSlots(): FaceSlot[] {
         row,
         occupied: false,
         isFamous: false,
-        animationMode: "canadian",
+        animationMode: 'canadian',
       });
 
       slotIndex++;

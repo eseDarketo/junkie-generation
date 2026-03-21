@@ -54,20 +54,20 @@ interface Section {
 const sections: Section[] = [
   // Intro
   { start: 0.0, end: 1.5, type: 'silence', intensity: 0 },
-  { start: 1.5, end: 4.0, type: 'spoken', intensity: 0.6 },   // "May I have your attention please?"
+  { start: 1.5, end: 4.0, type: 'spoken', intensity: 0.6 }, // "May I have your attention please?"
   { start: 4.0, end: 5.0, type: 'silence', intensity: 0 },
-  { start: 5.0, end: 8.0, type: 'spoken', intensity: 0.7 },   // "May I have your attention please?"
+  { start: 5.0, end: 8.0, type: 'spoken', intensity: 0.7 }, // "May I have your attention please?"
   { start: 8.0, end: 9.0, type: 'silence', intensity: 0 },
-  { start: 9.0, end: 14.5, type: 'spoken', intensity: 0.8 },  // "Will the real Slim Shady please stand up?"
+  { start: 9.0, end: 14.5, type: 'spoken', intensity: 0.8 }, // "Will the real Slim Shady please stand up?"
   { start: 14.5, end: 15.5, type: 'silence', intensity: 0 },
   { start: 15.5, end: 21.0, type: 'spoken', intensity: 0.8 }, // "I repeat, will the real Slim Shady..."
   { start: 21.0, end: 25.0, type: 'spoken', intensity: 0.9 }, // "We're gonna have a problem here"
   { start: 25.0, end: 26.0, type: 'silence', intensity: 0 },
 
   // Verse 1
-  { start: 26.0, end: 28.5, type: 'rap', intensity: 0.8 },    // "Y'all act like you never seen a white person before"
+  { start: 26.0, end: 28.5, type: 'rap', intensity: 0.8 }, // "Y'all act like you never seen a white person before"
   { start: 28.5, end: 29.0, type: 'silence', intensity: 0 },
-  { start: 29.0, end: 32.0, type: 'rap', intensity: 0.85 },   // "Jaws all on the floor..."
+  { start: 29.0, end: 32.0, type: 'rap', intensity: 0.85 }, // "Jaws all on the floor..."
   { start: 32.0, end: 35.0, type: 'rap', intensity: 0.85 },
   { start: 35.0, end: 38.0, type: 'rap', intensity: 0.9 },
   { start: 38.0, end: 38.5, type: 'silence', intensity: 0 },
@@ -89,10 +89,10 @@ const sections: Section[] = [
   { start: 78.0, end: 79.0, type: 'silence', intensity: 0 },
 
   // Chorus 1
-  { start: 79.0, end: 83.0, type: 'chorus', intensity: 0.95 },  // "I'm Slim Shady, yes I'm the real Shady"
-  { start: 83.0, end: 87.0, type: 'chorus', intensity: 0.95 },  // "All you other Slim Shadys are just imitating"
-  { start: 87.0, end: 91.0, type: 'chorus', intensity: 1.0 },   // "So won't the real Slim Shady please stand up"
-  { start: 91.0, end: 95.0, type: 'chorus', intensity: 1.0 },   // "Please stand up, please stand up"
+  { start: 79.0, end: 83.0, type: 'chorus', intensity: 0.95 }, // "I'm Slim Shady, yes I'm the real Shady"
+  { start: 83.0, end: 87.0, type: 'chorus', intensity: 0.95 }, // "All you other Slim Shadys are just imitating"
+  { start: 87.0, end: 91.0, type: 'chorus', intensity: 1.0 }, // "So won't the real Slim Shady please stand up"
+  { start: 91.0, end: 95.0, type: 'chorus', intensity: 1.0 }, // "Please stand up, please stand up"
   { start: 95.0, end: 97.0, type: 'silence', intensity: 0 },
 
   // Verse 2
@@ -174,9 +174,9 @@ const sections: Section[] = [
   { start: 272.0, end: 273.0, type: 'silence', intensity: 0 },
 
   // Outro
-  { start: 273.0, end: 276.0, type: 'spoken', intensity: 0.7 },  // "Guess there's a Slim Shady in all of us"
-  { start: 276.0, end: 279.0, type: 'spoken', intensity: 0.6 },  // "Fuck it, let's all stand up"
-  { start: 279.0, end: 283.0, type: 'silence', intensity: 0 },   // Fade out
+  { start: 273.0, end: 276.0, type: 'spoken', intensity: 0.7 }, // "Guess there's a Slim Shady in all of us"
+  { start: 276.0, end: 279.0, type: 'spoken', intensity: 0.6 }, // "Fuck it, let's all stand up"
+  { start: 279.0, end: 283.0, type: 'silence', intensity: 0 }, // Fade out
 ];
 
 function generateCuesForSection(section: Section): MouthCue[] {
@@ -191,15 +191,15 @@ function generateCuesForSection(section: Section): MouthCue[] {
   switch (section.type) {
     case 'rap':
       patterns = rapPatterns;
-      cuesPerSecond = 5 + (section.intensity * 3); // 5-8 cues/sec for rap
+      cuesPerSecond = 5 + section.intensity * 3; // 5-8 cues/sec for rap
       break;
     case 'chorus':
       patterns = chorusPatterns;
-      cuesPerSecond = 4 + (section.intensity * 2); // 4-6 cues/sec for chorus
+      cuesPerSecond = 4 + section.intensity * 2; // 4-6 cues/sec for chorus
       break;
     case 'spoken':
       patterns = spokenPatterns;
-      cuesPerSecond = 3 + (section.intensity * 2); // 3-5 cues/sec for spoken
+      cuesPerSecond = 3 + section.intensity * 2; // 3-5 cues/sec for spoken
       break;
     case 'shout':
       patterns = [['D', 'D', 'C', 'D', 'D', 'C']];

@@ -1,18 +1,20 @@
 // ============================================================
 // /display — Main Display Screen — DEV A owns this file
 // ============================================================
-"use client";
+'use client';
 
-import { useState, useCallback } from "react";
-import dynamic from "next/dynamic";
-import MusicPlayer from "@/components/MusicPlayer";
+import { useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+import MusicPlayer from '@/components/MusicPlayer';
 
 // Dynamic import for Three.js (no SSR)
-const SceneRenderer = dynamic(() => import("@/components/SceneRenderer"), {
+const SceneRenderer = dynamic(() => import('@/components/SceneRenderer'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-screen bg-black flex items-center justify-center">
-      <div className="text-white/30 text-2xl animate-pulse">Loading scene...</div>
+      <div className="text-white/30 text-2xl animate-pulse">
+        Loading scene...
+      </div>
     </div>
   ),
 });

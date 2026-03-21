@@ -7,8 +7,8 @@
 
 'use client';
 
-import { useRef, useMemo } from "react";
-import { FaceAnimParams, generateAnimParams } from "@/lib/mouthMapper";
+import { useRef, useMemo } from 'react';
+import { FaceAnimParams, generateAnimParams } from '@/lib/mouthMapper';
 
 /**
  * Hook that generates and caches animation parameters for each face slot.
@@ -18,15 +18,16 @@ export function useLipSyncParams() {
   const paramsMapRef = useRef<Map<string, FaceAnimParams>>(new Map());
 
   const getParamsForSlot = useMemo(
-    () => (slotId: string): FaceAnimParams => {
-      let params = paramsMapRef.current.get(slotId);
-      if (!params) {
-        params = generateAnimParams();
-        paramsMapRef.current.set(slotId, params);
-      }
-      return params;
-    },
-    []
+    () =>
+      (slotId: string): FaceAnimParams => {
+        let params = paramsMapRef.current.get(slotId);
+        if (!params) {
+          params = generateAnimParams();
+          paramsMapRef.current.set(slotId, params);
+        }
+        return params;
+      },
+    [],
   );
 
   return getParamsForSlot;

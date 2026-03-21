@@ -4,7 +4,7 @@
 // Primary mode: look up mouth cue from pre-processed vocal map JSON
 // Fallback mode: extract RMS amplitude from Web Audio AnalyserNode
 
-import type { MouthCue, VocalMap } from "@/types";
+import type { MouthCue, VocalMap } from '@/types';
 
 // Offset in seconds to align the vocal map with the audio track.
 // Positive = vocal map starts later than the audio (shift cues forward).
@@ -28,7 +28,7 @@ export async function loadVocalMap(url: string): Promise<VocalMap> {
  */
 export function getMouthCueAtTime(
   cues: MouthCue[],
-  time: number
+  time: number,
 ): MouthCue | null {
   let low = 0;
   let high = cues.length - 1;
@@ -64,23 +64,23 @@ export function getMouthCueAtTime(
  */
 export function mouthShapeToOpenness(shape: string): number {
   switch (shape) {
-    case "X":
+    case 'X':
       return 0.0;
-    case "A":
+    case 'A':
       return 0.05;
-    case "B":
+    case 'B':
       return 0.25;
-    case "C":
+    case 'C':
       return 0.55;
-    case "D":
+    case 'D':
       return 0.9;
-    case "E":
+    case 'E':
       return 0.5;
-    case "F":
+    case 'F':
       return 0.3;
-    case "G":
+    case 'G':
       return 0.2;
-    case "H":
+    case 'H':
       return 0.35;
     default:
       return 0.0;

@@ -35,7 +35,7 @@ export function generateAnimParams(): FaceAnimParams {
 export function opennessToRotation(
   openness: number,
   params: FaceAnimParams,
-  timeSeconds: number
+  timeSeconds: number,
 ): number {
   // Apply enthusiasm factor
   const adjustedOpenness = openness * params.enthusiasmFactor;

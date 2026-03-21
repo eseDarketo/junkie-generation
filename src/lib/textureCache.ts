@@ -1,7 +1,7 @@
 // ============================================================
 // textureCache — Preloads and caches split face textures — DEV A
 // ============================================================
-import * as THREE from "three";
+import * as THREE from 'three';
 
 const SPLIT_RATIO = 0.82; // 2/3 top, 1/3 bottom — cut at mouth level
 
@@ -22,7 +22,10 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-async function loadWithRetry(src: string, retries = 2): Promise<HTMLImageElement> {
+async function loadWithRetry(
+  src: string,
+  retries = 2,
+): Promise<HTMLImageElement> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await loadImage(attempt === 0 ? src : `${src}?r=${attempt}`);
@@ -37,23 +40,32 @@ async function loadWithRetry(src: string, retries = 2): Promise<HTMLImageElement
 function splitImage(img: HTMLImageElement): SplitTextures {
   const splitY = Math.floor(img.height * SPLIT_RATIO);
 
-  const topCanvas = document.createElement("canvas");
+  const topCanvas = document.createElement('canvas');
   topCanvas.width = img.width;
   topCanvas.height = splitY;
-  topCanvas.getContext("2d")!.drawImage(
-    img, 0, 0, img.width, splitY, 0, 0, img.width, splitY
-  );
+  topCanvas
+    .getContext('2d')!
+    .drawImage(img, 0, 0, img.width, splitY, 0, 0, img.width, splitY);
   const topTex = new THREE.CanvasTexture(topCanvas);
   topTex.minFilter = THREE.LinearFilter;
   topTex.magFilter = THREE.LinearFilter;
 
-  const bottomCanvas = document.createElement("canvas");
+  const bottomCanvas = document.createElement('canvas');
   bottomCanvas.width = img.width;
   bottomCanvas.height = img.height - splitY;
-  bottomCanvas.getContext("2d")!.drawImage(
-    img, 0, splitY, img.width, img.height - splitY,
-    0, 0, img.width, img.height - splitY
-  );
+  bottomCanvas
+    .getContext('2d')!
+    .drawImage(
+      img,
+      0,
+      splitY,
+      img.width,
+      img.height - splitY,
+      0,
+      0,
+      img.width,
+      img.height - splitY,
+    );
   const bottomTex = new THREE.CanvasTexture(bottomCanvas);
   bottomTex.minFilter = THREE.LinearFilter;
   bottomTex.magFilter = THREE.LinearFilter;
@@ -75,15 +87,17 @@ export function getSplitTextures(src: string): Promise<SplitTextures> {
   if (inflight) return inflight;
 
   // Start loading
-  const promise = loadWithRetry(src).then((img) => {
-    const textures = splitImage(img);
-    cache.set(src, textures);
-    loading.delete(src);
-    return textures;
-  }).catch((err) => {
-    loading.delete(src);
-    throw err;
-  });
+  const promise = loadWithRetry(src)
+    .then((img) => {
+      const textures = splitImage(img);
+      cache.set(src, textures);
+      loading.delete(src);
+      return textures;
+    })
+    .catch((err) => {
+      loading.delete(src);
+      throw err;
+    });
 
   loading.set(src, promise);
   return promise;
@@ -99,7 +113,7 @@ export async function preloadFaces(urls: string[]): Promise<void> {
     try {
       await getSplitTextures(url);
     } catch (err) {
-      console.error("Preload failed:", url, err);
+      console.error('Preload failed:', url, err);
     }
   }
 }
