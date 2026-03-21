@@ -14,8 +14,10 @@ import { FaceAnimParams, opennessToRotation } from '@/lib/mouthMapper';
 import { getSplitTextures } from '@/lib/textureCache';
 import type { FaceSlot as FaceSlotType } from '@/types';
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+
+const BODY_IMAGES = ['/bodies/suit-one.png', '/bodies/suit-two.png'];
 
 interface FaceSlotProps {
   slot: FaceSlotType;
@@ -38,10 +40,18 @@ export default function FaceSlotComponent({
   const [bottomTexture, setBottomTexture] = useState<THREE.Texture | null>(
     null,
   );
+  const [bodyTexture, setBodyTexture] = useState<THREE.Texture | null>(null);
   const [loadKey, setLoadKey] = useState(0);
+
+  // Deterministic body assignment based on slot id hash
+  const bodyImage = useMemo(() => {
+    const hash = slot.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    return BODY_IMAGES[hash % BODY_IMAGES.length];
+  }, [slot.id]);
 
   const faceWidth = FACE_BASE_SIZE * slot.scale;
   const faceHeight = FACE_BASE_SIZE * slot.scale;
+  const bodyHeight = faceWidth; // 1:1 body image, same width as face
   const topHeight = faceHeight * SPLIT_RATIO;
   const bottomHeight = faceHeight * (1 - SPLIT_RATIO);
 
@@ -52,12 +62,27 @@ export default function FaceSlotComponent({
       .then(({ top, bottom }) => {
         setTopTexture(top);
         setBottomTexture(bottom);
-        setLoadKey((k) => k + 1); // force remount of meshes
+        setLoadKey((k) => k + 1);
       })
       .catch((err) => {
         console.error(err.message);
       });
   }, [slot.faceImage]);
+
+  // Load body texture
+  useEffect(() => {
+    new THREE.TextureLoader().load(
+      bodyImage,
+      (tex) => {
+        tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.needsUpdate = true;
+        setBodyTexture(tex);
+      },
+      undefined,
+      (err) => console.error('Body load failed:', bodyImage, err),
+    );
+  }, [bodyImage]);
 
   // Max hinge rotation in radians (~30 degrees fully open)
   const MAX_HINGE_ANGLE = 0.52;
@@ -78,12 +103,6 @@ export default function FaceSlotComponent({
 
   return (
     <group position={[slot.x, -slot.y, 0]}>
-      {/* White backing behind face (covers mouth gap) */}
-      <mesh position={[0, 0, -0.02]}>
-        <planeGeometry args={[faceWidth, faceHeight * 1.5]} />
-        <meshBasicMaterial color="#ffffff" />
-      </mesh>
-
       {/* Top half — rotates on hinge at bottom-right corner */}
       <group ref={topRef} position={[faceWidth / 2, -topHeight / 2, 0.01]}>
         {/* Mesh offset up and left so group origin is at bottom-right corner */}
@@ -108,6 +127,23 @@ export default function FaceSlotComponent({
         <meshBasicMaterial
           color={bottomTexture ? '#ffffff' : '#1a1a1a'}
           map={bottomTexture}
+        />
+      </mesh>
+
+      {/* Body — sits below the face, overlaps slightly, behind head */}
+      <mesh
+        key={`body-${bodyTexture ? 'loaded' : 'pending'}`}
+        position={[
+          0,
+          -topHeight / 2 - bottomHeight - bodyHeight / 2 + bottomHeight * 0.6,
+          -0.01,
+        ]}
+      >
+        <planeGeometry args={[faceWidth, bodyHeight]} />
+        <meshBasicMaterial
+          color={bodyTexture ? '#ffffff' : '#ff0000'}
+          map={bodyTexture}
+          transparent
         />
       </mesh>
     </group>

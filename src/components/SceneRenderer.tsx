@@ -32,6 +32,7 @@ import type {
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import Starburst from './ConcentricCircles';
 import FaceSlotComponent from './FaceSlot';
 import { useLipSyncParams } from './LipSyncEngine';
 
@@ -140,6 +141,9 @@ function SceneContent({
         <planeGeometry args={[SCENE_WIDTH * 1.5, SCENE_HEIGHT * 1.5]} />
         <meshBasicMaterial color="#ffffff" />
       </mesh>
+
+      {/* Art deco starburst — pulsing background */}
+      <Starburst openness={openness} />
 
       {/* Render all face slots */}
       {slots.map((slot) => (

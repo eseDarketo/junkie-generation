@@ -12,14 +12,16 @@ import type { MouthCue, VocalMap } from '@/types';
 export const VOCAL_MAP_OFFSET = 0;
 
 let cachedVocalMap: VocalMap | null = null;
+let cachedVocalMapUrl: string | null = null;
 
 /**
- * Load and cache the vocal map JSON
+ * Load and cache the vocal map JSON (reloads when URL changes)
  */
 export async function loadVocalMap(url: string): Promise<VocalMap> {
-  if (cachedVocalMap) return cachedVocalMap;
+  if (cachedVocalMap && cachedVocalMapUrl === url) return cachedVocalMap;
   const res = await fetch(url);
   cachedVocalMap = await res.json();
+  cachedVocalMapUrl = url;
   return cachedVocalMap!;
 }
 
