@@ -5,10 +5,18 @@
 import { addFace, getAllFaces, getFacesSince } from '@/lib/faceStore';
 import { NextRequest, NextResponse } from 'next/server';
 
+// Prevent Next.js from caching API responses
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const since = req.nextUrl.searchParams.get('since');
   const faces = since ? getFacesSince(Number(since)) : getAllFaces();
-  return NextResponse.json({ faces });
+  return NextResponse.json(
+    { faces },
+    {
+      headers: { 'Cache-Control': 'no-store' },
+    },
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -21,13 +29,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    addFace({
+    const face = {
       id: body.id || crypto.randomUUID(),
       image: body.image,
       timestamp: Date.now(),
       name: body.name,
       descriptor: body.descriptor,
-    });
+    };
+    addFace(face);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(
