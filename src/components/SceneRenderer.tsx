@@ -163,11 +163,13 @@ function SceneContent({
 interface SceneRendererProps {
   openness: number;
   elapsedTime: number;
+  controlsVisible?: boolean;
 }
 
 export default function SceneRenderer({
   openness,
   elapsedTime,
+  controlsVisible = true,
 }: SceneRendererProps) {
   const [slots, setSlots] = useState<FaceSlotType[]>([]);
   const [overview, setOverview] = useState(false);
@@ -270,10 +272,14 @@ export default function SceneRenderer({
       className="w-full h-full relative"
       style={{ filter: 'grayscale(100%)' }}
     >
-      {/* Overview toggle button */}
+      {/* Overview toggle button — auto-hide with controls */}
       <button
         onClick={() => setOverview((v) => !v)}
-        className="absolute top-4 right-4 z-10 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-lg border border-white/20 transition-all"
+        className="absolute top-4 right-4 z-10 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-lg border border-white/20 transition-opacity duration-500"
+        style={{
+          opacity: controlsVisible ? 1 : 0,
+          pointerEvents: controlsVisible ? 'auto' : 'none',
+        }}
       >
         {overview ? 'Ken Burns' : 'Full Scene'}
       </button>
