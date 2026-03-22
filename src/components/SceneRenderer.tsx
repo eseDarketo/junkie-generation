@@ -17,11 +17,11 @@
 
 import {
   DUMMY_FACE,
+  fetchVipFaces,
   findEmptySlot,
   generateSlots,
   SCENE_HEIGHT,
   SCENE_WIDTH,
-  VIP_FACES,
 } from '@/lib/faceSlots';
 import { preloadFaces } from '@/lib/textureCache';
 import type {
@@ -163,11 +163,13 @@ function SceneContent({
 interface SceneRendererProps {
   openness: number;
   elapsedTime: number;
+  controlsVisible?: boolean;
 }
 
 export default function SceneRenderer({
   openness,
   elapsedTime,
+  controlsVisible = true,
 }: SceneRendererProps) {
   const [slots, setSlots] = useState<FaceSlotType[]>([]);
   const [overview, setOverview] = useState(false);
@@ -176,16 +178,22 @@ export default function SceneRenderer({
   // Initialize slots and preload all face images before rendering
   useEffect(() => {
     async function init() {
+      // Fetch VIP faces dynamically from the server
+      const vipFaces = await fetchVipFaces();
+
       // Preload ALL images first, wait for completion
-      const allUrls = [DUMMY_FACE, ...VIP_FACES.map((v) => v.file)];
+      const allUrls = [DUMMY_FACE, ...vipFaces.map((v) => v.file)];
       await preloadFaces(allUrls);
 
       const initialSlots = generateSlots();
 
       // Assign VIPs to specific slot indices spread evenly
       const vipSlotIndices: number[] = [];
-      const step = Math.floor(initialSlots.length / VIP_FACES.length);
-      for (let v = 0; v < VIP_FACES.length; v++) {
+      const step =
+        vipFaces.length > 0
+          ? Math.floor(initialSlots.length / vipFaces.length)
+          : initialSlots.length;
+      for (let v = 0; v < vipFaces.length; v++) {
         vipSlotIndices.push(v * step + Math.floor(step / 2));
       }
 
@@ -196,8 +204,8 @@ export default function SceneRenderer({
             ...slot,
             occupied: true,
             isFamous: true,
-            faceImage: VIP_FACES[vipIdx].file,
-            label: VIP_FACES[vipIdx].label,
+            faceImage: vipFaces[vipIdx].file,
+            label: vipFaces[vipIdx].label,
             animationMode: 'canadian' as const,
           };
         }
@@ -264,10 +272,14 @@ export default function SceneRenderer({
       className="w-full h-full relative"
       style={{ filter: 'grayscale(100%)' }}
     >
-      {/* Overview toggle button */}
+      {/* Overview toggle button — auto-hide with controls */}
       <button
         onClick={() => setOverview((v) => !v)}
-        className="absolute top-4 right-4 z-10 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-lg border border-white/20 transition-all"
+        className="absolute top-4 right-4 z-10 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-lg border border-white/20 transition-opacity duration-500"
+        style={{
+          opacity: controlsVisible ? 1 : 0,
+          pointerEvents: controlsVisible ? 'auto' : 'none',
+        }}
       >
         {overview ? 'Ken Burns' : 'Full Scene'}
       </button>

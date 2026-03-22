@@ -5,7 +5,7 @@
 
 import MusicPlayer from '@/components/MusicPlayer';
 import dynamic from 'next/dynamic';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // Dynamic import for Three.js (no SSR)
 const SceneRenderer = dynamic(() => import('@/components/SceneRenderer'), {
@@ -38,6 +38,8 @@ export default function DisplayPage() {
   const [openness, setOpenness] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [songId, setSongId] = useState(SONGS[0].id);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentSong = useMemo(
     () => SONGS.find((s) => s.id === songId)!,
@@ -52,34 +54,69 @@ export default function DisplayPage() {
     setElapsedTime(time);
   }, []);
 
+  const showControls = useCallback(() => {
+    setControlsVisible(true);
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    hideTimeoutRef.current = setTimeout(() => {
+      setControlsVisible(false);
+    }, 3000);
+  }, []);
+
+  // Start the auto-hide timer on mount
+  useEffect(() => {
+    hideTimeoutRef.current = setTimeout(() => {
+      setControlsVisible(false);
+    }, 3000);
+    return () => {
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    };
+  }, []);
+
   return (
-    <main className="w-screen h-screen bg-black overflow-hidden">
+    <main
+      className="w-screen h-screen bg-black overflow-hidden cursor-none"
+      onMouseMove={showControls}
+      onMouseDown={showControls}
+      style={{ cursor: controlsVisible ? 'default' : 'none' }}
+    >
       {/* Three.js scene — full screen */}
       <div className="w-full h-full">
-        <SceneRenderer openness={openness} elapsedTime={elapsedTime} />
+        <SceneRenderer
+          openness={openness}
+          elapsedTime={elapsedTime}
+          controlsVisible={controlsVisible}
+        />
       </div>
 
-      {/* Music player bar — fixed at bottom */}
-      <MusicPlayer
-        key={songId}
-        trackUrl={currentSong.track}
-        vocalMapUrl={currentSong.vocalMap}
-        onOpennessChange={handleOpennessChange}
-        onTimeChange={handleTimeChange}
-        songSelector={
-          <select
-            value={songId}
-            onChange={(e) => setSongId(e.target.value)}
-            className="bg-white/10 text-white text-xs rounded px-2 py-1 border border-white/20 cursor-pointer outline-none"
-          >
-            {SONGS.map((s) => (
-              <option key={s.id} value={s.id} className="bg-black text-white">
-                {s.label}
-              </option>
-            ))}
-          </select>
-        }
-      />
+      {/* Music player bar — auto-hide */}
+      <div
+        className="transition-opacity duration-500"
+        style={{
+          opacity: controlsVisible ? 1 : 0,
+          pointerEvents: controlsVisible ? 'auto' : 'none',
+        }}
+      >
+        <MusicPlayer
+          key={songId}
+          trackUrl={currentSong.track}
+          vocalMapUrl={currentSong.vocalMap}
+          onOpennessChange={handleOpennessChange}
+          onTimeChange={handleTimeChange}
+          songSelector={
+            <select
+              value={songId}
+              onChange={(e) => setSongId(e.target.value)}
+              className="bg-white/10 text-white text-xs rounded px-2 py-1 border border-white/20 cursor-pointer outline-none"
+            >
+              {SONGS.map((s) => (
+                <option key={s.id} value={s.id} className="bg-black text-white">
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          }
+        />
+      </div>
     </main>
   );
 }
