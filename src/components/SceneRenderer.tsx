@@ -224,20 +224,34 @@ export default function SceneRenderer({
     init();
   }, []);
 
-  // Poll /api/faces for new guest faces
+  // Poll /api/faces for new guest faces and detect deletions
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/faces?since=${lastPollRef.current}`, {
+        const res = await fetch('/api/faces', {
           cache: 'no-store',
         });
         const { faces } = (await res.json()) as { faces: StoredFace[] };
 
-        if (faces && faces.length > 0) {
+        if (faces) {
           setSlots((prev) => {
             const updated = [...prev];
+
+            // Get IDs of all current guest faces from the API
+            const currentGuestIds = new Set(faces.map((f) => f.id));
+
+            // Update slots:
+            // 1. Replace dummy slots with new guest faces
+            // 2. Reset slots with deleted faces back to dummy
+
             for (const face of faces) {
-              // Find a dummy slot (non-VIP, still showing generic face)
+              // Skip if already placed
+              if (
+                updated.some((s) => s.faceImage === face.image && !s.isFamous)
+              )
+                continue;
+
+              // Find a dummy slot or empty slot
               const dummy =
                 updated.find(
                   (s) => !s.isFamous && s.faceImage === DUMMY_FACE,
@@ -247,6 +261,7 @@ export default function SceneRenderer({
                 if (idx !== -1) {
                   updated[idx] = {
                     ...updated[idx],
+                    guestFaceId: face.id, // Track guest ID separately from slot ID
                     occupied: true,
                     faceImage: face.image,
                     isFamous: false,
@@ -255,9 +270,29 @@ export default function SceneRenderer({
                 }
               }
             }
+
+            // Reset any slots whose guest face was deleted
+            for (let i = 0; i < updated.length; i++) {
+              const slot = updated[i];
+              // If it's a guest face (not vip/famous) and the face ID is no longer in the API, reset it
+              if (
+                !slot.isFamous &&
+                slot.faceImage !== DUMMY_FACE &&
+                'guestFaceId' in slot &&
+                !currentGuestIds.has(slot.guestFaceId as string)
+              ) {
+                updated[i] = {
+                  ...slot,
+                  guestFaceId: undefined,
+                  occupied: true,
+                  faceImage: DUMMY_FACE,
+                  label: undefined,
+                };
+              }
+            }
+
             return updated;
           });
-          lastPollRef.current = Date.now();
         }
       } catch {
         // API not available yet (Dev B hasn't built it) — that's fine

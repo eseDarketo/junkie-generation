@@ -43,6 +43,15 @@ export function getFaceById(id: string): StoredFace | undefined {
   return faces.find((f) => f.id === id);
 }
 
+export function deleteFaceById(id: string): boolean {
+  const idx = faces.findIndex((f) => f.id === id);
+  if (idx >= 0) {
+    faces.splice(idx, 1);
+    return true;
+  }
+  return false;
+}
+
 export function clearFaces(): void {
   faces.length = 0;
 }

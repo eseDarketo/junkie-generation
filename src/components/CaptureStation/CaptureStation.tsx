@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { processCapture } from './FaceProcessor';
 import { DetectionData, useFaceDetection } from './useFaceDetection';
@@ -51,25 +51,54 @@ export function CaptureStation() {
   );
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [rawImage, setRawImage] = useState<string | null>(null);
-  const [localArchive, setLocalArchive] = useState<string[]>([]);
+  const [localArchive, setLocalArchive] = useState<
+    Array<{ id: string; image: string; descriptor?: number[] }>
+  >([]);
   const [isCapturing, setIsCapturing] = useState(false);
-  const knownDescriptors = useRef<Float32Array[]>([]);
+  const knownDescriptors = useRef<Map<string, Float32Array>>(new Map());
 
   // Initial load of archive
   useEffect(() => {
     const existing = JSON.parse(localStorage.getItem('captured_faces') || '[]');
-    setLocalArchive(existing);
+    // Migrate old format (array of strings) to new format (array of objects)
+    const migrated = existing.map(
+      (
+        item: string | { id: string; image: string; descriptor?: number[] },
+        idx: number,
+      ) => {
+        if (typeof item === 'string') {
+          return { id: `face_${Date.now()}_${idx}`, image: item };
+        }
+        return item;
+      },
+    );
+    setLocalArchive(migrated);
+
+    // Rebuild knownDescriptors from stored data
+    knownDescriptors.current.clear();
+    for (const face of migrated) {
+      if (face.descriptor) {
+        knownDescriptors.current.set(
+          face.id,
+          new Float32Array(face.descriptor),
+        );
+      }
+    }
   }, []);
 
   // Filter detections to only new (unknown) faces
   const getNewFaces = (dets: DetectionData[]): DetectionData[] =>
     dets.filter(
       (d) =>
-        d.descriptor && !isKnownFace(d.descriptor, knownDescriptors.current),
+        d.descriptor &&
+        !isKnownFace(
+          d.descriptor,
+          Array.from(knownDescriptors.current.values()),
+        ),
     );
 
   // Capture only faces not previously seen
-  const handleCapture = async () => {
+  const handleCapture = useCallback(async () => {
     const newFaces = getNewFaces(detections);
     if (newFaces.length === 0 || !videoRef.current) return;
 
@@ -82,29 +111,44 @@ export function CaptureStation() {
           det.landmarks,
         );
 
-        // 1. Save to Local Storage (Save the filtered version)
-        const existingString = localStorage.getItem('captured_faces');
-        const existing = existingString ? JSON.parse(existingString) : [];
-        const updated = [result.filtered, ...existing].slice(0, 10);
-        localStorage.setItem('captured_faces', JSON.stringify(updated));
+        const faceId = `face_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-        // 2. POST to /api/faces (filtered version for Dev A)
+        // 1. POST to /api/faces (filtered version for Dev A)
         await fetch('/api/faces', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            id: faceId,
             image: result.filtered,
             name: 'Guest',
             descriptor: det.descriptor ? Array.from(det.descriptor) : undefined,
           }),
         });
 
+        // 2. Save to Local Storage with ID and descriptor
+        const existingString = localStorage.getItem('captured_faces');
+        const existing = existingString ? JSON.parse(existingString) : [];
+        const updated = [
+          {
+            id: faceId,
+            image: result.filtered,
+            descriptor: det.descriptor ? Array.from(det.descriptor) : undefined,
+          },
+          ...existing,
+        ].slice(0, 10);
+        localStorage.setItem('captured_faces', JSON.stringify(updated));
+
         // 3. Remember this face
         if (det.descriptor) {
-          knownDescriptors.current.push(det.descriptor);
+          knownDescriptors.current.set(faceId, det.descriptor);
         }
 
-        return { raw: result.raw, filtered: result.filtered, updated };
+        return {
+          raw: result.raw,
+          filtered: result.filtered,
+          updated,
+          id: faceId,
+        };
       });
 
       const results = await Promise.all(capturePromises);
@@ -127,7 +171,8 @@ export function CaptureStation() {
     } finally {
       setIsCapturing(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detections]);
 
   // Auto-shutter: fires when new (unknown) faces appear
   useEffect(() => {
@@ -135,7 +180,35 @@ export function CaptureStation() {
     if (getNewFaces(detections).length > 0) {
       handleCapture();
     }
-  }, [detections, status, isCapturing]);
+  }, [detections, handleCapture, status, isCapturing]);
+
+  // Delete a single face by ID
+  const handleDeleteFace = async (faceId: string) => {
+    try {
+      // Remove from API
+      await fetch(`/api/faces/${faceId}`, {
+        method: 'DELETE',
+      });
+
+      // Remove from local state and storage
+      const updated = localArchive.filter((f) => f.id !== faceId);
+      setLocalArchive(updated);
+      localStorage.setItem('captured_faces', JSON.stringify(updated));
+
+      // Remove the descriptor so face can be registered again
+      knownDescriptors.current.delete(faceId);
+
+      toast.success('FACE_DELETED', {
+        description: 'Biometric profile removed.',
+        duration: 1500,
+      });
+    } catch (err) {
+      console.error('Delete error:', err);
+      toast.error('DELETE_ERROR', {
+        description: 'Failed to delete face.',
+      });
+    }
+  };
 
   useEffect(() => {
     if (isInitializing) setStatus('starting');
@@ -260,29 +333,32 @@ export function CaptureStation() {
 
                 {/* Dynamic tracking reticles for multiple faces */}
                 {stream &&
-                  detections.map((det, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        position: 'absolute',
-                        left: `${100 - ((det.box.x + det.box.width) / (videoRef.current?.videoWidth || 1)) * 100}%`,
-                        top: `${(det.box.y / (videoRef.current?.videoHeight || 1)) * 100}%`,
-                        width: `${(det.box.width / (videoRef.current?.videoWidth || 1)) * 100}%`,
-                        height: `${(det.box.height / (videoRef.current?.videoHeight || 1)) * 100}%`,
-                      }}
-                      className="border border-[#8ff5ff] transition-all duration-100 pointer-events-none flex items-center justify-center shadow-[0_0_15px_rgba(143,245,255,0.2)]"
-                    >
-                      <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#8ff5ff]"></div>
-                      <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-[#8ff5ff]"></div>
-                      <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-[#8ff5ff]"></div>
-                      <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#8ff5ff]"></div>
+                  detections.map((det, idx) => {
+                    const detKey = `${Math.round(det.box.x)}-${Math.round(det.box.y)}-${Math.round(det.box.width)}-${Math.round(det.box.height)}`;
+                    return (
+                      <div
+                        key={detKey}
+                        style={{
+                          position: 'absolute',
+                          left: `${100 - ((det.box.x + det.box.width) / (videoRef.current?.videoWidth || 1)) * 100}%`,
+                          top: `${(det.box.y / (videoRef.current?.videoHeight || 1)) * 100}%`,
+                          width: `${(det.box.width / (videoRef.current?.videoWidth || 1)) * 100}%`,
+                          height: `${(det.box.height / (videoRef.current?.videoHeight || 1)) * 100}%`,
+                        }}
+                        className="border border-[#8ff5ff] transition-all duration-100 pointer-events-none flex items-center justify-center shadow-[0_0_15px_rgba(143,245,255,0.2)]"
+                      >
+                        <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#8ff5ff]"></div>
+                        <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-[#8ff5ff]"></div>
+                        <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-[#8ff5ff]"></div>
+                        <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#8ff5ff]"></div>
 
-                      <div className="absolute -bottom-5 left-0 whitespace-nowrap text-[#8ff5ff] text-[7px] font-black tracking-widest bg-[#0c0e10]/80 px-1 py-0.5 backdrop-blur-sm border border-[#8ff5ff]/20">
-                        ID_{idx.toString().padStart(2, '0')}{' '}
-                        {(det.confidence * 100).toFixed(0)}%
+                        <div className="absolute -bottom-5 left-0 whitespace-nowrap text-[#8ff5ff] text-[7px] font-black tracking-widest bg-[#0c0e10]/80 px-1 py-0.5 backdrop-blur-sm border border-[#8ff5ff]/20">
+                          ID_{idx.toString().padStart(2, '0')}{' '}
+                          {(det.confidence * 100).toFixed(0)}%
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                 {/* Default searching reticle when no faces */}
                 {stream && detections.length === 0 && (
@@ -512,17 +588,26 @@ export function CaptureStation() {
 
               <div className="grid grid-cols-4 gap-2">
                 {localArchive.length > 0 ? (
-                  localArchive.map((img, idx) => (
+                  localArchive.map((item) => (
                     <div
-                      key={idx}
+                      key={item.id}
                       className={`aspect-square relative rounded border ${colors.outlineVariant}/20 overflow-hidden group`}
                     >
                       <img
-                        src={img}
+                        src={item.image}
                         className="w-full h-full object-cover grayscale brightness-75 hover:brightness-100 transition-all duration-300"
                         alt="Archive"
                       />
                       <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                      {/* Delete button - appears on hover */}
+                      <button
+                        onClick={() => handleDeleteFace(item.id)}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 shadow-lg"
+                        title="Delete face"
+                      >
+                        ×
+                      </button>
                     </div>
                   ))
                 ) : (
@@ -536,10 +621,28 @@ export function CaptureStation() {
               {localArchive.length > 0 && (
                 <button
                   onClick={async () => {
-                    localStorage.removeItem('captured_faces');
-                    setLocalArchive([]);
-                    knownDescriptors.current = [];
-                    await fetch('/api/faces', { method: 'DELETE' });
+                    try {
+                      // Delete all faces from API
+                      await Promise.all(
+                        localArchive.map((item) =>
+                          fetch(`/api/faces/${item.id}`, { method: 'DELETE' }),
+                        ),
+                      );
+
+                      localStorage.removeItem('captured_faces');
+                      setLocalArchive([]);
+                      knownDescriptors.current.clear();
+
+                      toast.success('ARCHIVE_CLEARED', {
+                        description: 'All biometric profiles removed.',
+                        duration: 1500,
+                      });
+                    } catch (err) {
+                      console.error('Clear error:', err);
+                      toast.error('CLEAR_ERROR', {
+                        description: 'Failed to clear archive.',
+                      });
+                    }
                   }}
                   className="text-[8px] text-red-500/50 hover:text-red-500 uppercase font-bold tracking-widest text-right transition-colors"
                 >
