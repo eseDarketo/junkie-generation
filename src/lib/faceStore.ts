@@ -2,11 +2,22 @@
 // FaceStore: In-memory store for guest faces — DEV B
 // ============================================================
 // This is used by /api/faces and /api/identify handlers.
+//
+// ⚠️  IMPORTANT: We anchor the array to `globalThis` so that all
+// route handlers share the SAME instance across Turbopack's
+// per-module hot-reload boundaries. Without this, /api/faces
+// (POST) and /api/faces/[id] (GET) each get an independent empty
+// array and faces "disappear" between routes without a restart.
 
 import type { StoredFace } from '@/types';
 
-// In-memory array (clears on server restart)
-const faces: StoredFace[] = [];
+declare global {
+  // eslint-disable-next-line no-var
+  var __faceStore: StoredFace[] | undefined;
+}
+
+// Re-use the existing array across hot-reloads; create once on first load.
+const faces: StoredFace[] = globalThis.__faceStore ?? (globalThis.__faceStore = []);
 
 export function addFace(face: StoredFace) {
   // Keep only last 50 to avoid memory bloat

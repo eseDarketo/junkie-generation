@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ match: null, guestCount: 0 });
   }
 
-  let bestMatch: { id: string; distance: number } | null = null;
+  let bestMatch: { id: string; distance: number; image: string; name?: string } | null = null;
 
   for (const face of facesWithDescriptors) {
     const distance = euclideanDistance(queryDescriptor, face.descriptor!);
@@ -53,12 +53,14 @@ export async function POST(req: NextRequest) {
       distance < MATCH_THRESHOLD &&
       (!bestMatch || distance < bestMatch.distance)
     ) {
-      bestMatch = { id: face.id, distance };
+      bestMatch = { id: face.id, distance, image: face.image, name: face.name };
     }
   }
 
   return NextResponse.json({
-    match: bestMatch ? { id: bestMatch.id } : null,
+    match: bestMatch
+      ? { id: bestMatch.id, image: bestMatch.image, name: bestMatch.name }
+      : null,
     guestCount: facesWithDescriptors.length,
   });
 }
