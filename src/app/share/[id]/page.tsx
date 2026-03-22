@@ -27,11 +27,17 @@ const PARTICLES = Array.from({ length: 30 }, (_, i) => ({
 }));
 
 // ─── Main Page ────────────────────────────────────────────────
-export default function SharePage({ params }: { params: Promise<{ id: string }> }) {
+export default function SharePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = use(params);
 
   const [face, setFace] = useState<GuestFace | null>(null);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
+    'loading',
+  );
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -72,7 +78,9 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const shareUrl =
@@ -80,21 +88,30 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
       ? `${window.location.origin}/share/${encodeURIComponent(id)}`
       : `/share/${encodeURIComponent(id)}`;
 
-  const shareText = '🎉 ¡Me encontraron en Junkie Generation! Mira mi avatar aquí:';
+  const shareText =
+    '🎉 ¡Me encontraron en Junkie Generation! Mira mi avatar aquí:';
 
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
-    } catch { /* blocked */ }
+    } catch {
+      /* blocked */
+    }
   };
 
   const handleNativeShare = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'Junkie Generation', text: shareText, url: shareUrl });
-      } catch { /* cancelled */ }
+        await navigator.share({
+          title: 'Junkie Generation',
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch {
+        /* cancelled */
+      }
     }
   };
 
@@ -125,7 +142,10 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
     return (
       <main
         className="min-h-[100dvh] w-full flex items-center justify-center"
-        style={{ background: 'radial-gradient(ellipse at 50% 30%, rgba(143,245,255,0.07) 0%, #000 70%)' }}
+        style={{
+          background:
+            'radial-gradient(ellipse at 50% 30%, rgba(143,245,255,0.07) 0%, #000 70%)',
+        }}
       >
         <div className="flex flex-col items-center gap-4">
           <div className="relative w-16 h-16">
@@ -155,7 +175,10 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
       >
         <div
           className="flex flex-col items-center gap-5 px-8 py-8 rounded-2xl text-center max-w-xs mx-4"
-          style={{ border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.05)' }}
+          style={{
+            border: '1px solid rgba(239,68,68,0.2)',
+            background: 'rgba(239,68,68,0.05)',
+          }}
         >
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center"
@@ -163,14 +186,20 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
           >
             <span className="text-red-400 text-3xl font-black">!</span>
           </div>
-          <p className="text-red-400 text-xs font-black tracking-widest uppercase">ID_NOT_FOUND</p>
+          <p className="text-red-400 text-xs font-black tracking-widest uppercase">
+            ID_NOT_FOUND
+          </p>
           <p className="text-[#aaabad] text-[11px] leading-relaxed">
-            Este avatar ya no está disponible. Los registros se borran cuando el servidor reinicia.
+            Este avatar ya no está disponible. Los registros se borran cuando el
+            servidor reinicia.
           </p>
           <a
             href="/identify"
             className="mt-1 px-6 py-3 rounded-xl font-black text-xs tracking-widest uppercase transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(135deg, #8ff5ff, #00deec)', color: '#005d63' }}
+            style={{
+              background: 'linear-gradient(135deg, #8ff5ff, #00deec)',
+              color: '#005d63',
+            }}
           >
             VOLVER_A_ESCANEAR
           </a>
@@ -185,7 +214,8 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
       <main
         className="min-h-[100dvh] w-full flex flex-col items-center overflow-y-auto"
         style={{
-          background: 'radial-gradient(ellipse at 50% 20%, rgba(143,245,255,0.09) 0%, #000 65%)',
+          background:
+            'radial-gradient(ellipse at 50% 20%, rgba(143,245,255,0.09) 0%, #000 65%)',
           fontFamily: "'Inter', 'Geist', system-ui, sans-serif",
         }}
       >
@@ -215,7 +245,8 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
           style={{
             border: '1px solid rgba(143,245,255,0.2)',
             background: 'linear-gradient(180deg, #0f1215 0%, #0c0e10 100%)',
-            boxShadow: '0 0 80px rgba(143,245,255,0.08), 0 0 160px rgba(0,222,236,0.04)',
+            boxShadow:
+              '0 0 80px rgba(143,245,255,0.08), 0 0 160px rgba(0,222,236,0.04)',
           }}
         >
           {/* Accent bar */}
@@ -236,7 +267,10 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
               >
                 JUNKIE_GENERATION
               </p>
-              <p className="text-[8px] font-bold tracking-widest mt-0.5" style={{ color: '#46484a' }}>
+              <p
+                className="text-[8px] font-bold tracking-widest mt-0.5"
+                style={{ color: '#46484a' }}
+              >
                 ID_CONFIRMED · #{id.slice(0, 8).toUpperCase()}
               </p>
             </div>
@@ -255,7 +289,8 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
                 aspectRatio: '3/4',
                 border: '2px solid rgba(143,245,255,0.28)',
                 background: '#0a0c0e',
-                boxShadow: '0 0 50px rgba(143,245,255,0.15), inset 0 0 30px rgba(143,245,255,0.03)',
+                boxShadow:
+                  '0 0 50px rgba(143,245,255,0.15), inset 0 0 30px rgba(143,245,255,0.03)',
               }}
             >
               {/* Corner brackets */}
@@ -298,7 +333,10 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
               >
                 <div
                   className="w-1.5 h-1.5 rounded-full animate-pulse"
-                  style={{ background: '#4ade80', boxShadow: '0 0 6px #4ade80' }}
+                  style={{
+                    background: '#4ade80',
+                    boxShadow: '0 0 6px #4ade80',
+                  }}
                 />
                 <span
                   className="text-[9px] font-black tracking-widest"
@@ -313,7 +351,9 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
           {/* ── Name (if present) ── */}
           {face.name && (
             <div className="px-5 pt-4 text-center">
-              <p className="text-white font-black text-xl tracking-tight">{face.name}</p>
+              <p className="text-white font-black text-xl tracking-tight">
+                {face.name}
+              </p>
             </div>
           )}
 
@@ -335,14 +375,20 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
                 id="share-whatsapp"
                 className="flex items-center justify-center gap-2 py-3.5 rounded-xl font-black text-[11px] tracking-widest transition-all hover:scale-[1.03] active:scale-[0.97] text-white"
                 style={{
-                  background: 'linear-gradient(135deg, #25d366 0%, #128c7e 100%)',
+                  background:
+                    'linear-gradient(135deg, #25d366 0%, #128c7e 100%)',
                   boxShadow: '0 4px 20px rgba(37,211,102,0.28)',
                 }}
               >
                 {/* WhatsApp icon */}
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                  <path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.556 4.118 1.528 5.845L0 24l6.335-1.517A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.655-.491-5.19-1.349l-.372-.22-3.762.901.938-3.666-.242-.374A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                  <path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.556 4.118 1.528 5.845L0 24l6.335-1.517A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.655-.491-5.19-1.349l-.372-.22-3.762.901.938-3.666-.242-.374A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
                 </svg>
                 WHATSAPP
               </a>
@@ -360,8 +406,13 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
                 }}
               >
                 {/* X icon */}
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.213 5.567zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.213 5.567zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
                 X / TWITTER
               </a>
@@ -381,13 +432,32 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
                 }}
               >
                 {downloading ? (
-                  <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeOpacity="0.25"/>
-                    <path d="M21 12c0-4.97-4.03-9-9-9"/>
+                  <svg
+                    className="animate-spin"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      strokeOpacity="0.25"
+                    />
+                    <path d="M21 12c0-4.97-4.03-9-9-9" />
                   </svg>
                 ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  >
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
                   </svg>
                 )}
                 {downloading ? 'SAVING...' : 'DOWNLOAD'}
@@ -395,35 +465,65 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
 
               <button
                 id="share-copy"
-                onClick={typeof window !== 'undefined' && !!navigator.share ? handleNativeShare : handleCopyLink}
+                onClick={
+                  typeof window !== 'undefined' && !!navigator.share
+                    ? handleNativeShare
+                    : handleCopyLink
+                }
                 className="flex items-center justify-center gap-2 py-3.5 rounded-xl font-black text-[11px] tracking-widest transition-all hover:scale-[1.03] active:scale-[0.97]"
                 style={{
-                  background: copied ? 'rgba(74,222,128,0.1)' : 'rgba(143,245,255,0.07)',
+                  background: copied
+                    ? 'rgba(74,222,128,0.1)'
+                    : 'rgba(143,245,255,0.07)',
                   color: copied ? '#4ade80' : '#8ff5ff',
                   border: `1px solid ${copied ? 'rgba(74,222,128,0.25)' : 'rgba(143,245,255,0.22)'}`,
                 }}
               >
                 {copied ? (
                   <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <path d="M20 6L9 17l-5-5"/>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    >
+                      <path d="M20 6L9 17l-5-5" />
                     </svg>
                     COPIADO!
                   </>
                 ) : typeof window !== 'undefined' && !!navigator.share ? (
                   <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <circle cx="18" cy="5" r="3"/>
-                      <circle cx="6" cy="12" r="3"/>
-                      <circle cx="18" cy="19" r="3"/>
-                      <path d="M8.59 13.51l6.83 3.98M15.41 6.51L8.59 10.49"/>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <circle cx="18" cy="5" r="3" />
+                      <circle cx="6" cy="12" r="3" />
+                      <circle cx="18" cy="19" r="3" />
+                      <path d="M8.59 13.51l6.83 3.98M15.41 6.51L8.59 10.49" />
                     </svg>
                     COMPARTIR
                   </>
                 ) : (
                   <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
                     </svg>
                     COPY_LINK
                   </>
@@ -442,9 +542,17 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
                 boxShadow: '0 4px 30px rgba(143,245,255,0.2)',
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M1 4v6h6M23 20v-6h-6"/>
-                <path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              >
+                <path d="M1 4v6h6M23 20v-6h-6" />
+                <path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15" />
               </svg>
               ESCANEAR_DE_NUEVO
             </a>
@@ -452,7 +560,10 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
 
           {/* Footer */}
           <div className="px-5 py-4 text-center flex-none">
-            <p className="text-[8px] font-bold tracking-widest" style={{ color: '#2a2e32' }}>
+            <p
+              className="text-[8px] font-bold tracking-widest"
+              style={{ color: '#2a2e32' }}
+            >
               JUNKIE_GENERATION · BIOMETRIC_ID · {new Date().getFullYear()}
             </p>
           </div>
@@ -460,7 +571,9 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
       </main>
 
       {/* Animations */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
 
         @keyframes floatUp {
@@ -468,7 +581,9 @@ export default function SharePage({ params }: { params: Promise<{ id: string }> 
           80%  { opacity: 0.3; }
           100% { transform: translateY(-95vh) scale(0.3); opacity: 0; }
         }
-      `}} />
+      `,
+        }}
+      />
     </>
   );
 }

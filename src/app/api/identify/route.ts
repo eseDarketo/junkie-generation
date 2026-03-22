@@ -45,7 +45,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ match: null, guestCount: 0 });
   }
 
-  let bestMatch: { id: string; distance: number; image: string; name?: string } | null = null;
+  let bestMatch: {
+    id: string;
+    distance: number;
+    image: string;
+    name?: string;
+  } | null = null;
 
   for (const face of facesWithDescriptors) {
     const distance = euclideanDistance(queryDescriptor, face.descriptor!);

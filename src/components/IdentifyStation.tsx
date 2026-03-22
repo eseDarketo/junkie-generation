@@ -325,7 +325,9 @@ export default function IdentifyStation() {
                         alt="Match"
                       />
                     ) : (
-                      <div className="text-4xl text-green-400 font-black">✓</div>
+                      <div className="text-4xl text-green-400 font-black">
+                        ✓
+                      </div>
                     )}
                   </div>
                   <div className="bg-[#0c0e10]/80 backdrop-blur-sm border border-green-400/30 px-6 py-3 rounded-lg text-center">

@@ -17,7 +17,8 @@ declare global {
 }
 
 // Re-use the existing array across hot-reloads; create once on first load.
-const faces: StoredFace[] = globalThis.__faceStore ?? (globalThis.__faceStore = []);
+const faces: StoredFace[] =
+  globalThis.__faceStore ?? (globalThis.__faceStore = []);
 
 export function addFace(face: StoredFace) {
   // Keep only last 50 to avoid memory bloat

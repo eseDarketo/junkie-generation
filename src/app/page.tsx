@@ -2,6 +2,7 @@
 // Landing / Admin Page — DEV A owns this file
 // ============================================================
 
+import { APP_VERSION } from '@/lib/version';
 import Link from 'next/link';
 
 export default function Home() {
@@ -47,6 +48,10 @@ export default function Home() {
           <p>
             <code>/share/[id]</code> — Individual avatar share page
           </p>
+        </div>
+
+        <div className="mt-16 pt-6 border-t border-gray-800 text-xs text-gray-700">
+          <p>Version: {APP_VERSION}</p>
         </div>
       </div>
     </main>
