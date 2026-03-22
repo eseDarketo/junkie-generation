@@ -8,7 +8,7 @@
 import IdentifyStation from '@/components/IdentifyStation';
 
 export const metadata = {
-  title: 'PartyFace — Find Yourself',
+  title: 'Junkie Generation — Find Yourself',
   description: 'Use your camera to find your singing avatar',
 };
 

@@ -32,12 +32,6 @@ const SONGS = [
     track: '/music/last.mp3',
     vocalMap: '/music/last-vocals.json',
   },
-  {
-    id: 'redbone',
-    label: 'Redbone',
-    track: '/music/redbone.mp3',
-    vocalMap: '/music/redbone-vocals.json',
-  },
 ];
 
 export default function DisplayPage() {
