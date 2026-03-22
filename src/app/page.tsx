@@ -8,7 +8,7 @@ export default function Home() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-black text-white">
       <div className="text-center space-y-8">
-        <h1 className="text-6xl font-bold tracking-tight">PartyFace</h1>
+        <h1 className="text-6xl font-bold tracking-tight">Junkie Generation</h1>
         <p className="text-xl text-gray-400">
           Real-Time Singing Group Photo Installation
         </p>
