@@ -114,6 +114,7 @@ export default function FaceSlotComponent({
           <meshBasicMaterial
             color={topTexture ? '#ffffff' : '#1a1a1a'}
             map={topTexture}
+            transparent
           />
         </mesh>
       </group>
@@ -127,6 +128,7 @@ export default function FaceSlotComponent({
         <meshBasicMaterial
           color={bottomTexture ? '#ffffff' : '#1a1a1a'}
           map={bottomTexture}
+          transparent
         />
       </mesh>
 
