@@ -49,6 +49,7 @@ function splitImage(img: HTMLImageElement): SplitTextures {
   const topTex = new THREE.CanvasTexture(topCanvas);
   topTex.minFilter = THREE.LinearFilter;
   topTex.magFilter = THREE.LinearFilter;
+  topTex.premultiplyAlpha = false;
 
   const bottomCanvas = document.createElement('canvas');
   bottomCanvas.width = img.width;
@@ -69,6 +70,7 @@ function splitImage(img: HTMLImageElement): SplitTextures {
   const bottomTex = new THREE.CanvasTexture(bottomCanvas);
   bottomTex.minFilter = THREE.LinearFilter;
   bottomTex.magFilter = THREE.LinearFilter;
+  bottomTex.premultiplyAlpha = false;
 
   return { top: topTex, bottom: bottomTex };
 }

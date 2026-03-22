@@ -10,17 +10,37 @@ import type { FaceSlot } from '@/types';
 const SCENE_WIDTH = 4000;
 const SCENE_HEIGHT = 2000;
 
-// Pre-loaded famous faces (VIPs)
-export const VIP_FACES: Array<{ file: string; label: string }> = [
-  { file: '/faces/vip-bad-bunny-compressed.jpg', label: 'Bad Bunny' },
-  { file: '/faces/vip-david-bowie-compressed.jpg', label: 'David Bowie' },
-  { file: '/faces/vip-dua-compressed.jpg', label: 'Dua Lipa' },
-  { file: '/faces/vip-lio-messi-compressed.jpg', label: 'Lio Messi' },
-  { file: '/faces/vip-nina-simone-compressed.jpg', label: 'Nina Simone' },
-  { file: '/faces/vip-rick-rubin-compressed.jpg', label: 'Rick Rubin' },
-  { file: '/faces/vip-til-compressed.jpg', label: 'Til' },
-  { file: '/faces/vip-ye-compressed.jpeg', label: 'Ye' },
-];
+// Pre-loaded famous faces — fetched dynamically from public/faces/
+// Files matching "vip-*" pattern are treated as VIP faces.
+// Label is derived from filename: "vip-bad-bunny-compressed.jpg" → "Bad Bunny"
+function labelFromFilename(filename: string): string {
+  return filename
+    .replace(/^(processed-)?vip-/, '')
+    .replace(/-(compressed|processed)/, '')
+    .replace(/\.[^.]+$/, '')
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+/**
+ * Fetch VIP face files dynamically from the server.
+ * Returns files matching "vip-*" from public/faces/.
+ */
+export async function fetchVipFaces(): Promise<
+  Array<{ file: string; label: string }>
+> {
+  try {
+    const res = await fetch('/api/faces/process');
+    const { files } = (await res.json()) as { files: string[] };
+    return files
+      .filter((f) => f.includes('vip-'))
+      .map((f) => ({ file: `/faces/${f}`, label: labelFromFilename(f) }));
+  } catch (err) {
+    console.error('Failed to fetch VIP faces:', err);
+    return [];
+  }
+}
 
 // Generic placeholder face for empty slots
 export const DUMMY_FACE = '/faces/dummy-face-compressed.jpeg';
@@ -87,4 +107,4 @@ export function findEmptySlot(slots: FaceSlot[]): FaceSlot | null {
   return null;
 }
 
-export { SCENE_WIDTH, SCENE_HEIGHT };
+export { SCENE_HEIGHT, SCENE_WIDTH };

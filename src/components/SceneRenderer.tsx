@@ -17,11 +17,11 @@
 
 import {
   DUMMY_FACE,
+  fetchVipFaces,
   findEmptySlot,
   generateSlots,
   SCENE_HEIGHT,
   SCENE_WIDTH,
-  VIP_FACES,
 } from '@/lib/faceSlots';
 import { preloadFaces } from '@/lib/textureCache';
 import type {
@@ -176,16 +176,22 @@ export default function SceneRenderer({
   // Initialize slots and preload all face images before rendering
   useEffect(() => {
     async function init() {
+      // Fetch VIP faces dynamically from the server
+      const vipFaces = await fetchVipFaces();
+
       // Preload ALL images first, wait for completion
-      const allUrls = [DUMMY_FACE, ...VIP_FACES.map((v) => v.file)];
+      const allUrls = [DUMMY_FACE, ...vipFaces.map((v) => v.file)];
       await preloadFaces(allUrls);
 
       const initialSlots = generateSlots();
 
       // Assign VIPs to specific slot indices spread evenly
       const vipSlotIndices: number[] = [];
-      const step = Math.floor(initialSlots.length / VIP_FACES.length);
-      for (let v = 0; v < VIP_FACES.length; v++) {
+      const step =
+        vipFaces.length > 0
+          ? Math.floor(initialSlots.length / vipFaces.length)
+          : initialSlots.length;
+      for (let v = 0; v < vipFaces.length; v++) {
         vipSlotIndices.push(v * step + Math.floor(step / 2));
       }
 
@@ -196,8 +202,8 @@ export default function SceneRenderer({
             ...slot,
             occupied: true,
             isFamous: true,
-            faceImage: VIP_FACES[vipIdx].file,
-            label: VIP_FACES[vipIdx].label,
+            faceImage: vipFaces[vipIdx].file,
+            label: vipFaces[vipIdx].label,
             animationMode: 'canadian' as const,
           };
         }
