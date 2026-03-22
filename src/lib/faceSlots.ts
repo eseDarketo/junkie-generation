@@ -43,7 +43,7 @@ export async function fetchVipFaces(): Promise<
 }
 
 // Generic placeholder face for empty slots
-export const DUMMY_FACE = '/faces/dummy-face-compressed.jpeg';
+export const DUMMY_FACE = '/faces/dummy-face.png';
 
 // Row configurations: [y position (0-1), scale, number of faces]
 const ROW_CONFIG: Array<{ y: number; scale: number; count: number }> = [
