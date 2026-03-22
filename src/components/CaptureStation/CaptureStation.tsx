@@ -279,7 +279,10 @@ export function CaptureStation() {
             <span className="text-[10px] text-[#8ff5ff] font-bold tracking-widest uppercase">
               ENCRYPTION: AES-256_ACTIVE
             </span>
-            <span className={`text-[10px] ${colors.onSurfaceVariant}`}>
+            <span
+              className={`text-[10px] ${colors.onSurfaceVariant}`}
+              suppressHydrationWarning
+            >
               UTC: {new Date().toISOString().substring(11, 19)}
             </span>
           </div>
