@@ -278,7 +278,7 @@ export function CaptureStation() {
                       <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#8ff5ff]"></div>
 
                       <div className="absolute -bottom-5 left-0 whitespace-nowrap text-[#8ff5ff] text-[7px] font-black tracking-widest bg-[#0c0e10]/80 px-1 py-0.5 backdrop-blur-sm border border-[#8ff5ff]/20">
-                        ID_{idx.toString().padStart(2, '0')} //{' '}
+                        ID_{idx.toString().padStart(2, '0')}{' '}
                         {(det.confidence * 100).toFixed(0)}%
                       </div>
                     </div>
@@ -535,10 +535,11 @@ export function CaptureStation() {
               </div>
               {localArchive.length > 0 && (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     localStorage.removeItem('captured_faces');
                     setLocalArchive([]);
                     knownDescriptors.current = [];
+                    await fetch('/api/faces', { method: 'DELETE' });
                   }}
                   className="text-[8px] text-red-500/50 hover:text-red-500 uppercase font-bold tracking-widest text-right transition-colors"
                 >

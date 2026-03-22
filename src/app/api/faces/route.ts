@@ -2,7 +2,12 @@
 // API Route: /api/faces — DEV B owns this file
 // ============================================================
 
-import { addFace, getAllFaces, getFacesSince } from '@/lib/faceStore';
+import {
+  addFace,
+  clearFaces,
+  getAllFaces,
+  getFacesSince,
+} from '@/lib/faceStore';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Prevent Next.js from caching API responses
@@ -17,6 +22,11 @@ export async function GET(req: NextRequest) {
       headers: { 'Cache-Control': 'no-store' },
     },
   );
+}
+
+export async function DELETE() {
+  clearFaces();
+  return NextResponse.json({ success: true });
 }
 
 export async function POST(req: NextRequest) {

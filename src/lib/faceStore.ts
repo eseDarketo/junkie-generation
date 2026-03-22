@@ -30,3 +30,7 @@ export function getFacesSince(timestamp: number): StoredFace[] {
 export function getFaceById(id: string): StoredFace | undefined {
   return faces.find((f) => f.id === id);
 }
+
+export function clearFaces(): void {
+  faces.length = 0;
+}
