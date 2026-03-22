@@ -56,66 +56,192 @@ function easeInOutSine(t: number): number {
 }
 
 // ---- Camera Controller (inside Canvas) ----
-function KenBurnsCamera({ overview }: { overview: boolean }) {
+function KenBurnsCamera({
+  overview,
+  newFaceSlot,
+  onAnimationComplete,
+}: {
+  overview: boolean;
+  newFaceSlot: FaceSlotType | null;
+  onAnimationComplete?: () => void;
+}) {
   const { camera, size } = useThree();
   const timeRef = useRef(0);
   const keyframeIndexRef = useRef(0);
   const keyframeTimeRef = useRef(0);
   const transitionRef = useRef(0); // 0 = ken burns, 1 = overview
+  const focusTimeRef = useRef(0); // Time since focus started
+  const focusBlendRef = useRef(0); // Blend factor for smooth exit (1 = full ken burns)
+  const isFocusingRef = useRef(false); // Whether we're in focus mode
+  const previousFaceSlotRef = useRef<FaceSlotType | null>(null); // Track if face changed
 
   useFrame((_, delta) => {
     if (!(camera instanceof THREE.OrthographicCamera)) return;
+
+    // Detect new face and start/restart focus
+    if (newFaceSlot && newFaceSlot !== previousFaceSlotRef.current) {
+      isFocusingRef.current = true;
+      focusTimeRef.current = 0;
+      focusBlendRef.current = 0; // Start blend at 0 (full focus)
+      previousFaceSlotRef.current = newFaceSlot;
+    }
 
     // Smooth transition between modes
     const target = overview ? 1 : 0;
     transitionRef.current += (target - transitionRef.current) * 0.03;
     const blend = transitionRef.current;
 
-    // Ken Burns animation (keeps running so it resumes smoothly)
-    timeRef.current += delta;
-    const elapsed = timeRef.current - keyframeTimeRef.current;
-    const currentIdx = keyframeIndexRef.current;
-    const nextIdx = (currentIdx + 1) % CAMERA_PATH.length;
-    const current = CAMERA_PATH[currentIdx];
-    const next = CAMERA_PATH[nextIdx];
+    // Focus and blend-out logic
+    const FOCUS_DURATION = 3.0;
+    const HOLD_DURATION = 2.0; // Hold on face before returning
+    const BLEND_OUT_DURATION = 3.0;
+    const TOTAL_FOCUS_DURATION =
+      FOCUS_DURATION + HOLD_DURATION + BLEND_OUT_DURATION;
 
-    let t = Math.min(elapsed / next.duration, 1);
-    t = easeInOutSine(t);
+    if (isFocusingRef.current && newFaceSlot) {
+      focusTimeRef.current += delta;
 
-    const kbX = THREE.MathUtils.lerp(
-      current.x * SCENE_WIDTH,
-      next.x * SCENE_WIDTH,
-      t,
-    );
-    const kbY = THREE.MathUtils.lerp(
-      -current.y * SCENE_HEIGHT,
-      -next.y * SCENE_HEIGHT,
-      t,
-    );
-    const kbZoom = THREE.MathUtils.lerp(current.zoom, next.zoom, t);
+      // Calculate focus progress (focus phase)
+      const focusProgress = Math.min(focusTimeRef.current / FOCUS_DURATION, 1);
+      const focusEase = easeInOutSine(focusProgress);
 
-    // Overview: center on scene, zoom to fit
-    const ovX = SCENE_WIDTH / 2;
-    const ovY = -SCENE_HEIGHT / 2;
-    // Calculate zoom to fit entire scene in viewport
-    const zoomX = size.width / SCENE_WIDTH;
-    const zoomY = size.height / SCENE_HEIGHT;
-    const ovZoom = Math.min(zoomX, zoomY) * 0.85; // 85% to add padding
+      // Calculate blend-out progress (smooth return to Ken Burns)
+      // Only start blending after holding on the face
+      if (focusTimeRef.current > FOCUS_DURATION + HOLD_DURATION) {
+        const blendOutProgress = Math.min(
+          (focusTimeRef.current - FOCUS_DURATION - HOLD_DURATION) /
+            BLEND_OUT_DURATION,
+          1,
+        );
+        focusBlendRef.current = blendOutProgress; // Blend out (0 → 1)
+      }
 
-    // Blend between modes
-    const x = THREE.MathUtils.lerp(kbX, ovX, blend);
-    const y = THREE.MathUtils.lerp(kbY, ovY, blend);
-    const zoom = THREE.MathUtils.lerp(kbZoom, ovZoom, blend);
+      // End focus mode after total duration
+      if (focusTimeRef.current >= TOTAL_FOCUS_DURATION) {
+        isFocusingRef.current = false;
+        previousFaceSlotRef.current = null;
+        // Call completion callback for queue processing
+        if (onAnimationComplete) {
+          onAnimationComplete();
+        }
+      }
 
-    camera.position.set(x, y, 100);
-    camera.lookAt(x, y, 0);
-    camera.zoom = zoom;
-    camera.updateProjectionMatrix();
+      // Ken Burns animation (keeps running so it resumes smoothly)
+      timeRef.current += delta;
+      const elapsed = timeRef.current - keyframeTimeRef.current;
+      const currentIdx = keyframeIndexRef.current;
+      const nextIdx = (currentIdx + 1) % CAMERA_PATH.length;
+      const current = CAMERA_PATH[currentIdx];
+      const next = CAMERA_PATH[nextIdx];
 
-    // Advance to next keyframe
-    if (elapsed >= next.duration) {
-      keyframeIndexRef.current = nextIdx;
-      keyframeTimeRef.current = timeRef.current;
+      let t = Math.min(elapsed / next.duration, 1);
+      t = easeInOutSine(t);
+
+      const kbX = THREE.MathUtils.lerp(
+        current.x * SCENE_WIDTH,
+        next.x * SCENE_WIDTH,
+        t,
+      );
+      const kbY = THREE.MathUtils.lerp(
+        -current.y * SCENE_HEIGHT,
+        -next.y * SCENE_HEIGHT,
+        t,
+      );
+      const kbZoom = THREE.MathUtils.lerp(current.zoom, next.zoom, t);
+
+      // Calculate position of new face (center of its bounding box)
+      // Use scale to approximate face size
+      const FACE_BASE_SIZE = 100; // Base face size in pixels
+      const faceWidth = FACE_BASE_SIZE * newFaceSlot.scale;
+      const faceHeight = FACE_BASE_SIZE * newFaceSlot.scale;
+      const faceX = newFaceSlot.x + faceWidth / 2;
+      const faceY = -(newFaceSlot.y + faceHeight / 2);
+      const focusZoom = 2.2; // Close-up zoom level
+
+      // Interpolate from Ken Burns towards new face, then blend back out
+      const focusX = THREE.MathUtils.lerp(kbX, faceX, focusEase);
+      const focusY = THREE.MathUtils.lerp(kbY, faceY, focusEase);
+      const focusZ = THREE.MathUtils.lerp(kbZoom, focusZoom, focusEase);
+
+      // Blend back towards Ken Burns based on focusBlendRef
+      const blendedX = THREE.MathUtils.lerp(focusX, kbX, focusBlendRef.current);
+      const blendedY = THREE.MathUtils.lerp(focusY, kbY, focusBlendRef.current);
+      const blendedZ = THREE.MathUtils.lerp(
+        focusZ,
+        kbZoom,
+        focusBlendRef.current,
+      );
+
+      // Overview: center on scene, zoom to fit
+      const ovX = SCENE_WIDTH / 2;
+      const ovY = -SCENE_HEIGHT / 2;
+      // Calculate zoom to fit entire scene in viewport
+      const zoomX = size.width / SCENE_WIDTH;
+      const zoomY = size.height / SCENE_HEIGHT;
+      const ovZoom = Math.min(zoomX, zoomY) * 0.85; // 85% to add padding
+
+      // Blend between focus and overview modes
+      const x = THREE.MathUtils.lerp(blendedX, ovX, blend);
+      const y = THREE.MathUtils.lerp(blendedY, ovY, blend);
+      const zoom = THREE.MathUtils.lerp(blendedZ, ovZoom, blend);
+
+      camera.position.set(x, y, 100);
+      camera.lookAt(x, y, 0);
+      camera.zoom = zoom;
+      camera.updateProjectionMatrix();
+
+      // Advance to next keyframe
+      if (elapsed >= next.duration) {
+        keyframeIndexRef.current = nextIdx;
+        keyframeTimeRef.current = timeRef.current;
+      }
+    } else {
+      // Normal Ken Burns without focus
+      timeRef.current += delta;
+      const elapsed = timeRef.current - keyframeTimeRef.current;
+      const currentIdx = keyframeIndexRef.current;
+      const nextIdx = (currentIdx + 1) % CAMERA_PATH.length;
+      const current = CAMERA_PATH[currentIdx];
+      const next = CAMERA_PATH[nextIdx];
+
+      let t = Math.min(elapsed / next.duration, 1);
+      t = easeInOutSine(t);
+
+      const kbX = THREE.MathUtils.lerp(
+        current.x * SCENE_WIDTH,
+        next.x * SCENE_WIDTH,
+        t,
+      );
+      const kbY = THREE.MathUtils.lerp(
+        -current.y * SCENE_HEIGHT,
+        -next.y * SCENE_HEIGHT,
+        t,
+      );
+      const kbZoom = THREE.MathUtils.lerp(current.zoom, next.zoom, t);
+
+      // Overview: center on scene, zoom to fit
+      const ovX = SCENE_WIDTH / 2;
+      const ovY = -SCENE_HEIGHT / 2;
+      // Calculate zoom to fit entire scene in viewport
+      const zoomX = size.width / SCENE_WIDTH;
+      const zoomY = size.height / SCENE_HEIGHT;
+      const ovZoom = Math.min(zoomX, zoomY) * 0.85; // 85% to add padding
+
+      // Blend between modes
+      const x = THREE.MathUtils.lerp(kbX, ovX, blend);
+      const y = THREE.MathUtils.lerp(kbY, ovY, blend);
+      const zoom = THREE.MathUtils.lerp(kbZoom, ovZoom, blend);
+
+      camera.position.set(x, y, 100);
+      camera.lookAt(x, y, 0);
+      camera.zoom = zoom;
+      camera.updateProjectionMatrix();
+
+      // Advance to next keyframe
+      if (elapsed >= next.duration) {
+        keyframeIndexRef.current = nextIdx;
+        keyframeTimeRef.current = timeRef.current;
+      }
     }
   });
 
@@ -173,7 +299,9 @@ export default function SceneRenderer({
 }: SceneRendererProps) {
   const [slots, setSlots] = useState<FaceSlotType[]>([]);
   const [overview, setOverview] = useState(false);
-  const lastPollRef = useRef(0);
+  const [newFaceSlot, setNewFaceSlot] = useState<FaceSlotType | null>(null);
+  const faceQueueRef = useRef<FaceSlotType[]>([]);
+  const isAnimatingRef = useRef(false);
 
   // Initialize slots and preload all face images before rendering
   useEffect(() => {
@@ -240,6 +368,9 @@ export default function SceneRenderer({
             // Get IDs of all current guest faces from the API
             const currentGuestIds = new Set(faces.map((f) => f.id));
 
+            // Track if a new face was added during this update
+            let addedFaceSlot: FaceSlotType | null = null;
+
             // Update slots:
             // 1. Replace dummy slots with new guest faces
             // 2. Reset slots with deleted faces back to dummy
@@ -267,6 +398,10 @@ export default function SceneRenderer({
                     isFamous: false,
                     label: face.name,
                   };
+                  // Detect new face
+                  if (prev[idx].faceImage === DUMMY_FACE) {
+                    addedFaceSlot = updated[idx];
+                  }
                 }
               }
             }
@@ -288,6 +423,19 @@ export default function SceneRenderer({
                   faceImage: DUMMY_FACE,
                   label: undefined,
                 };
+              }
+            }
+
+            // Enqueue the new face if one was added
+            if (addedFaceSlot) {
+              faceQueueRef.current.push(addedFaceSlot);
+              // Start animation if not already animating
+              if (
+                !isAnimatingRef.current &&
+                faceQueueRef.current.length === 1
+              ) {
+                isAnimatingRef.current = true;
+                setNewFaceSlot(addedFaceSlot);
               }
             }
 
@@ -330,7 +478,20 @@ export default function SceneRenderer({
         gl={{ antialias: true, alpha: false }}
         style={{ background: '#ffffff' }}
       >
-        <KenBurnsCamera overview={overview} />
+        <KenBurnsCamera
+          overview={overview}
+          newFaceSlot={newFaceSlot}
+          onAnimationComplete={() => {
+            // Remove completed face from queue and start next if available
+            faceQueueRef.current.shift();
+            if (faceQueueRef.current.length > 0) {
+              setNewFaceSlot(faceQueueRef.current[0]);
+            } else {
+              isAnimatingRef.current = false;
+              setNewFaceSlot(null);
+            }
+          }}
+        />
         <SceneContent
           slots={slots}
           openness={openness}

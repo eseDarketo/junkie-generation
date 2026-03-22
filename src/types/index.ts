@@ -16,12 +16,15 @@ export interface FaceSlot {
   x: number; // X position on canvas (pixels)
   y: number; // Y position on canvas (pixels)
   scale: number; // Size multiplier (front row bigger, back row smaller)
+  width?: number; // Calculated width (for camera focus)
+  height?: number; // Calculated height (for camera focus)
   row: number; // Which row (for depth/overlap ordering)
   occupied: boolean;
   faceImage?: string; // Base64 or URL of the face image
   isFamous: boolean; // Pre-loaded celebrity vs. party guest
   label?: string; // Name (for famous faces, shown on hover/zoom)
   animationMode: 'canadian' | 'sprite';
+  guestFaceId?: string; // ID of guest face (for tracking deletions)
 }
 
 export interface CameraKeyframe {
